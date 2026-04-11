@@ -15,7 +15,16 @@ import {
 
 export default function Dashboard() {
   const { userName, logs, archiveLogs } = useTracker();
+
+  // Dynamic Stat Calculations
+  const totalActive = logs.length;
   const highPriorityCount = logs.filter((l) => l.priority === "High").length;
+  const avgDays =
+    logs.length > 0
+      ? (
+          logs.reduce((acc, curr) => acc + curr.days_oos, 0) / logs.length
+        ).toFixed(1)
+      : "0.0";
 
   const handleLogout = () => {
     localStorage.removeItem("pepsi_user");
@@ -23,7 +32,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-slate-950 text-slate-50">
       {/* Sidebar - Brand Pepsi Blue */}
       <aside className="w-72 bg-pepsi-blue text-white hidden lg:flex flex-col shadow-2xl shrink-0">
         <div className="p-8">
@@ -83,7 +92,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatCard
               label="Active Alerts"
-              value={logs.length}
+              value={totalActive}
               icon={<PackageSearch />}
               color="text-blue-400 bg-blue-500/10"
             />
@@ -95,18 +104,16 @@ export default function Dashboard() {
             />
             <StatCard
               label="Days OOS Avg"
-              value="2.4"
+              value={avgDays}
               icon={<TrendingUp />}
               color="text-emerald-400 bg-emerald-500/10"
             />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 pb-10">
-            {/* Form Section */}
             <div className="xl:col-span-4 bg-slate-900 rounded-[2.5rem] p-8 border border-slate-800 shadow-xl">
               <StockoutForm />
             </div>
-            {/* Table Section */}
             <div className="xl:col-span-8 bg-slate-900 rounded-[2.5rem] border border-slate-800 shadow-xl overflow-hidden">
               <LogTable />
             </div>
@@ -134,7 +141,11 @@ function StatCard({ label, value, icon, color }: any) {
 function NavButton({ active, icon, label }: any) {
   return (
     <button
-      className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all cursor-pointer ${active ? "bg-white text-pepsi-blue shadow-xl" : "text-blue-100 hover:bg-white/10"}`}
+      className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all cursor-pointer ${
+        active
+          ? "bg-white text-pepsi-blue shadow-xl"
+          : "text-blue-100 hover:bg-white/10"
+      }`}
     >
       {icon} <span className="font-bold text-sm tracking-wide">{label}</span>
     </button>

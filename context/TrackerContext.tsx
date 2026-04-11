@@ -17,7 +17,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<any[]>([]);
 
   const registerUser = async (name: string) => {
-    const cleanName = name.trim().toLowerCase();
+    const cleanName = name.trim().toLowerCase(); // Ensure lowercase consistency
     let { data: profile } = await supabase
       .from("profiles")
       .select("*")
@@ -45,20 +45,25 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   const fetchLogs = async () => {
     if (!userName) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("stockouts")
       .select("*")
       .eq("user_name", userName)
       .eq("is_archived", false)
       .order("created_at", { ascending: false });
-    if (data) setLogs(data);
+
+    if (error) console.error("Fetch Error:", error.message);
+    setLogs(data || []);
   };
 
   useEffect(() => {
     if (!userName) return;
+
     fetchLogs();
+
+    // Setup Realtime Subscription
     const channel = supabase
-      .channel("stockout-updates")
+      .channel(`db-changes-${userName}`)
       .on(
         "postgres_changes",
         {
@@ -67,18 +72,23 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
           table: "stockouts",
           filter: `user_name=eq.${userName}`,
         },
-        () => fetchLogs(),
+        (payload) => {
+          console.log("Realtime Update:", payload);
+          fetchLogs();
+        },
       )
       .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
     };
   }, [userName]);
 
   const addLog = async (entry: any) => {
-    await supabase
+    const { error } = await supabase
       .from("stockouts")
       .insert([{ ...entry, user_name: userName }]);
+    if (error) console.error("Insert Error:", error.message);
   };
 
   const archiveLogs = async () => {
