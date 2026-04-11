@@ -16,25 +16,21 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [userName, setUserNameState] = useState<string | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
 
-  // Register or Login User
   const registerUser = async (name: string) => {
     const cleanName = name.trim().toLowerCase();
-
-    // Check if user exists
     let { data: profile } = await supabase
       .from("profiles")
       .select("*")
       .eq("username", cleanName)
       .single();
 
-    // If not, create them
     if (!profile) {
       const { data: newProfile, error } = await supabase
         .from("profiles")
         .insert([{ username: cleanName }])
         .select()
         .single();
-      if (error) return alert("Registration failed");
+      if (error) return;
       profile = newProfile;
     }
 
@@ -47,7 +43,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     if (saved) setUserNameState(saved);
   }, []);
 
-  // Fetch initial logs
   const fetchLogs = async () => {
     if (!userName) return;
     const { data } = await supabase
@@ -61,27 +56,20 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!userName) return;
-
     fetchLogs();
-
-    // --- REALTIME SUBSCRIPTION ---
     const channel = supabase
       .channel("stockout-updates")
       .on(
         "postgres_changes",
         {
-          event: "*", // Listen for all changes (Insert, Update, Delete)
+          event: "*",
           schema: "public",
           table: "stockouts",
           filter: `user_name=eq.${userName}`,
         },
-        (payload) => {
-          console.log("Realtime change received:", payload);
-          fetchLogs(); // Refresh state whenever the DB changes
-        },
+        () => fetchLogs(),
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -91,7 +79,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     await supabase
       .from("stockouts")
       .insert([{ ...entry, user_name: userName }]);
-    // No need to fetchLogs here manually, Realtime handles it!
   };
 
   const archiveLogs = async () => {
