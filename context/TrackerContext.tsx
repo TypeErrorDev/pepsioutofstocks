@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 
 interface TrackerContextType {
   userName: string | null;
-  setUserName: (name: string) => void;
+  registerUser: (name: string) => Promise<void>;
   logs: any[];
   addLog: (entry: any) => Promise<void>;
   archiveLogs: () => Promise<void>;
@@ -16,10 +16,30 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [userName, setUserNameState] = useState<string | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
 
-  // Set name and persist in localStorage so they don't have to re-type it every refresh
-  const setUserName = (name: string) => {
-    setUserNameState(name);
-    localStorage.setItem("pepsi_user", name);
+  // Register or Login User
+  const registerUser = async (name: string) => {
+    const cleanName = name.trim().toLowerCase();
+
+    // Check if user exists
+    let { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("username", cleanName)
+      .single();
+
+    // If not, create them
+    if (!profile) {
+      const { data: newProfile, error } = await supabase
+        .from("profiles")
+        .insert([{ username: cleanName }])
+        .select()
+        .single();
+      if (error) return alert("Registration failed");
+      profile = newProfile;
+    }
+
+    setUserNameState(profile.username);
+    localStorage.setItem("pepsi_user", profile.username);
   };
 
   useEffect(() => {
@@ -27,39 +47,64 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     if (saved) setUserNameState(saved);
   }, []);
 
-  // Fetch logs from Supabase
+  // Fetch initial logs
   const fetchLogs = async () => {
+    if (!userName) return;
     const { data } = await supabase
       .from("stockouts")
       .select("*")
+      .eq("user_name", userName)
       .eq("is_archived", false)
       .order("created_at", { ascending: false });
     if (data) setLogs(data);
   };
 
   useEffect(() => {
-    if (userName) fetchLogs();
+    if (!userName) return;
+
+    fetchLogs();
+
+    // --- REALTIME SUBSCRIPTION ---
+    const channel = supabase
+      .channel("stockout-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Listen for all changes (Insert, Update, Delete)
+          schema: "public",
+          table: "stockouts",
+          filter: `user_name=eq.${userName}`,
+        },
+        (payload) => {
+          console.log("Realtime change received:", payload);
+          fetchLogs(); // Refresh state whenever the DB changes
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [userName]);
 
   const addLog = async (entry: any) => {
-    const { error } = await supabase
+    await supabase
       .from("stockouts")
       .insert([{ ...entry, user_name: userName }]);
-    if (!error) fetchLogs();
+    // No need to fetchLogs here manually, Realtime handles it!
   };
 
   const archiveLogs = async () => {
-    const { error } = await supabase
+    await supabase
       .from("stockouts")
       .update({ is_archived: true })
       .eq("user_name", userName)
       .eq("is_archived", false);
-    if (!error) setLogs([]);
   };
 
   return (
     <TrackerContext.Provider
-      value={{ userName, setUserName, logs, addLog, archiveLogs }}
+      value={{ userName, registerUser, logs, addLog, archiveLogs }}
     >
       {children}
     </TrackerContext.Provider>
