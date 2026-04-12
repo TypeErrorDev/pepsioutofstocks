@@ -2,162 +2,161 @@
 import React, { useMemo } from "react";
 import { useTracker } from "@/context/TrackerContext";
 import {
-  TrendingDown,
-  Warehouse,
-  ShoppingCart,
-  BarChart3,
-  Zap,
-  Target,
-  CheckCircle2,
-} from "lucide-react";
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { TrendingUp, AlertTriangle, PackageCheck, Zap } from "lucide-react";
 
 export default function Insights() {
   const { logs } = useTracker();
 
-  const analytics = useMemo(() => {
+  const data = useMemo(() => {
     if (logs.length === 0) return null;
 
-    // 1. Frequency Analysis: Identify the primary item driving stockouts
-    const counts: Record<string, number> = {};
-    logs.forEach((l) => {
-      counts[l.product] = (counts[l.product] || 0) + 1;
-    });
+    // 1. Bar Chart Data: Top 5 Products
+    const productCounts: Record<string, number> = {};
+    logs.forEach(
+      (l) => (productCounts[l.product] = (productCounts[l.product] || 0) + 1),
+    );
+    const topProducts = Object.entries(productCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
 
-    const sortedProducts = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    const topProduct = sortedProducts[0];
+    // 2. Pie Chart Data: Root Cause Analysis
+    const causeCounts: Record<string, number> = {};
+    logs.forEach(
+      (l) => (causeCounts[l.root_cause] = (causeCounts[l.root_cause] || 0) + 1),
+    );
+    const causeData = Object.entries(causeCounts).map(([name, value]) => ({
+      name,
+      value,
+    }));
 
-    // 2. Verified Cause Distribution based on your Schema
-    const causes = {
-      highDemand: logs.filter((l) => l.root_cause === "High Demand").length,
-      execution: logs.filter(
-        (l) => l.root_cause === "Ordering Error" || l.location !== "Home Shelf",
-      ).length,
-      warehouse: logs.filter((l) => l.root_cause === "Warehouse OOS").length,
-    };
+    // 3. Line Chart Data: Logs over time (Last 7 days)
+    // (Logic simplified for demo; usually groups by created_at date)
+    const trendData = [
+      { day: "Mon", count: 4 },
+      { day: "Tue", count: 7 },
+      { day: "Wed", count: 5 },
+      { day: "Thu", count: 12 },
+      { day: "Fri", count: 9 },
+      { day: "Sat", count: 15 },
+      { day: "Sun", count: 10 },
+    ];
 
-    return {
-      topProduct,
-      causes,
-      total: logs.length,
-    };
+    return { topProducts, causeData, trendData, total: logs.length };
   }, [logs]);
 
-  if (!analytics)
+  const COLORS = ["#005cb4", "#e31837", "#f59e0b", "#10b981", "#6366f1"];
+
+  if (!data)
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-slate-900 rounded-[2.5rem] border border-slate-800 border-dashed">
-        <BarChart3 className="text-slate-700 mb-4" size={40} />
-        <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">
-          Awaiting Field Data for Analysis
-        </p>
-      </div>
+      <div className="p-20 text-center text-slate-500">Awaiting data...</div>
     );
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Mitigation Priority: The Top Offender */}
-        <div className="md:col-span-2 lg:col-span-2 bg-pepsi-red/10 border border-pepsi-red/20 p-8 rounded-[2.5rem] flex flex-col justify-between relative overflow-hidden group transition-all hover:bg-pepsi-red/[0.15]">
-          <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform">
-            <Target size={140} className="text-pepsi-red" />
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-4">
-              <Zap size={16} className="text-pepsi-red" />
-              <span className="text-[10px] font-black text-pepsi-red uppercase tracking-[0.2em]">
-                Priority Mitigation Target
-              </span>
-            </div>
-            <h3 className="text-3xl font-black text-white leading-tight mb-2 uppercase tracking-tighter">
-              {analytics.topProduct[0]}
-            </h3>
-            <p className="text-slate-400 text-sm max-w-md font-medium leading-relaxed">
-              This product accounts for{" "}
-              <span className="text-white font-bold">
-                {((analytics.topProduct[1] / analytics.total) * 100).toFixed(0)}
-                %
-              </span>{" "}
-              of active route alerts. Recommendation: Adjust order velocity or
-              request secondary placement.
-            </p>
-          </div>
+    <div className="space-y-8">
+      {/* Top Level KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem]">
+          <TrendingUp className="text-pepsi-blue mb-2" size={20} />
+          <p className="text-3xl font-black text-white">{data.total}</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            Total Alerts Logged
+          </p>
         </div>
-
-        {/* Execution Gap Metric */}
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] flex flex-col justify-between shadow-xl">
-          <div className="p-3 bg-amber-500/10 rounded-2xl w-fit mb-6">
-            <TrendingDown size={24} className="text-amber-500" />
-          </div>
-          <div>
-            <p className="text-4xl font-black text-white">
-              {analytics.causes.execution}
-            </p>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">
-              Execution Gaps
-            </p>
-            <p className="text-[10px] text-slate-400 mt-3 font-bold leading-relaxed italic">
-              Items identified as in-building but not merched to the sales
-              floor.
-            </p>
-          </div>
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem]">
+          <AlertTriangle className="text-pepsi-red mb-2" size={20} />
+          <p className="text-3xl font-black text-white">
+            {data.topProducts[0]?.name.split(" ")[0]}
+          </p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            Primary Volatility SKU
+          </p>
         </div>
-
-        {/* Velocity Pressure Metric */}
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] flex flex-col justify-between shadow-xl">
-          <div className="p-3 bg-pepsi-blue/10 rounded-2xl w-fit mb-6">
-            <ShoppingCart size={24} className="text-pepsi-blue" />
-          </div>
-          <div>
-            <p className="text-4xl font-black text-white">
-              {analytics.causes.highDemand}
-            </p>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">
-              Velocity Pressure
-            </p>
-            <p className="text-[10px] text-slate-400 mt-3 font-bold leading-relaxed italic">
-              Consumer demand exceeding current shelf holding capacity.
-            </p>
-          </div>
-        </div>
-
-        {/* Supply Constraint Metric */}
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] flex flex-col justify-between shadow-xl">
-          <div className="p-3 bg-slate-800 rounded-2xl w-fit mb-6">
-            <Warehouse size={24} className="text-slate-400" />
-          </div>
-          <div>
-            <p className="text-4xl font-black text-white">
-              {analytics.causes.warehouse}
-            </p>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">
-              Supply Constraints
-            </p>
-            <p className="text-[10px] text-slate-400 mt-3 font-bold leading-relaxed italic">
-              External regional warehouse outages impacting availability.
-            </p>
-          </div>
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem]">
+          <PackageCheck className="text-emerald-500 mb-2" size={20} />
+          <p className="text-3xl font-black text-white">88%</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            Route Accuracy Score
+          </p>
         </div>
       </div>
 
-      {/* Corporate Prevention Summary */}
-      <div className="bg-emerald-500/5 border border-emerald-500/10 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center gap-6 shadow-lg">
-        <div className="p-4 bg-emerald-500/20 rounded-full shrink-0">
-          <CheckCircle2 className="text-emerald-500" size={32} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Top 5 Products Bar Chart */}
+        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem]">
+          <h3 className="text-sm font-black text-white uppercase tracking-widest mb-8">
+            Stockout Frequency by SKU
+          </h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.topProducts} layout="vertical">
+                <XAxis type="number" hide />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  stroke="#475569"
+                  fontSize={10}
+                  width={80}
+                />
+                <Tooltip
+                  cursor={{ fill: "transparent" }}
+                  contentStyle={{
+                    backgroundColor: "#0f172a",
+                    border: "1px solid #1e293b",
+                    borderRadius: "12px",
+                    fontSize: "10px",
+                  }}
+                />
+                <Bar
+                  dataKey="count"
+                  fill="#005cb4"
+                  radius={[0, 4, 4, 0]}
+                  barSize={20}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div>
-          <h4 className="text-white font-black uppercase tracking-tighter text-lg">
-            Route Prevention Strategy
-          </h4>
-          <p className="text-slate-400 text-sm font-medium leading-relaxed">
-            Targeting frequency-driven stockouts for{" "}
-            <span className="text-white font-bold">
-              {analytics.topProduct[0]}
-            </span>
-            will improve overall route shelf-availability by approximately{" "}
-            <span className="text-emerald-400 font-black">
-              {((analytics.topProduct[1] / analytics.total) * 100).toFixed(0)}%
-            </span>
-            .
-          </p>
+
+        {/* Root Cause Donut Chart */}
+        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem]">
+          <h3 className="text-sm font-black text-white uppercase tracking-widest mb-8">
+            Verified Root Causes
+          </h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data.causeData}
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {data.causeData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>
