@@ -4,8 +4,9 @@ import { useTracker } from "@/context/TrackerContext";
 import LoginView from "./LoginView";
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useTracker();
+  const { user, profile, loading } = useTracker();
 
+  // 1. Initial Load / Refresh Hang Prevention
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
@@ -17,9 +18,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
+  // 2. Authorization Check
+  // We must have both a session (user) and a database record (profile)
+  if (!user || !profile) {
     return <LoginView />;
   }
 
+  // 3. Render Dashboard/App
   return <>{children}</>;
 }

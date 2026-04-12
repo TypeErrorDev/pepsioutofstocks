@@ -40,42 +40,49 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    if (data) setProfile(data);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      if (data) setProfile(data);
+      return data;
+    } catch (e) {
+      console.error("Profile fetch error", e);
+      return null;
+    }
   };
 
   const fetchLogs = async () => {
-    const { data } = await supabase
-      .from("logs")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (data) setLogs(data);
+    try {
+      const { data } = await supabase
+        .from("logs")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setLogs(data);
+    } catch (e) {
+      console.error("Logs fetch error", e);
+    }
   };
 
   useEffect(() => {
     const initializeAuth = async () => {
+      setLoading(true);
       try {
-        // Set a safety timeout to prevent infinite hang if network is slow
-        const timeout = setTimeout(() => setLoading(false), 5000);
-
         const {
           data: { session },
         } = await supabase.auth.getSession();
 
         if (session?.user) {
           setUser(session.user);
-          // Fetch data in parallel to speed up initialization
+          // Wait for both profile and logs to ensure the dashboard has data
           await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
         }
-
-        clearTimeout(timeout);
       } catch (error) {
         console.error("Initialization error:", error);
       } finally {
+        // Guaranteed to run, preventing the "hang"
         setLoading(false);
       }
     };
@@ -84,11 +91,11 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session?.user) {
+        if (event === "SIGNED_IN" && session?.user) {
           setUser(session.user);
           await fetchProfile(session.user.id);
           await fetchLogs();
-        } else {
+        } else if (event === "SIGNED_OUT") {
           setUser(null);
           setProfile(null);
           setLogs([]);
@@ -120,18 +127,31 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password: pass,
-      options: { data: { full_name: fullName, gpid: gpid, role: role } },
+      options: {
+        data: {
+          full_name: fullName,
+          gpid: gpid,
+          role: role,
+        },
+      },
     });
     if (error) throw error;
     return data;
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setLogs([]);
-    window.location.href = "/";
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      setLogs([]);
+      // Hard redirect to clear any internal Next.js/Turbopack memory state
+      window.location.replace("/");
+    } catch (error) {
+      console.error("Sign out error:", error);
+      window.location.href = "/";
+    }
   };
 
   const addLog = async (logData: any) => {
