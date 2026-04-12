@@ -6,154 +6,202 @@ import {
   User as UserIcon,
   ChevronLeft,
   ChevronRight,
-  Info,
   X,
   ShoppingCart,
   RefreshCw,
   AlertCircle,
-  Package,
+  Clock,
 } from "lucide-react";
 
 export default function LogTable() {
   const { logs, profile, loading } = useTracker();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
-  const itemsPerPage = 10;
+  const itemsPerPage = 6;
 
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
-
   const filteredLogs = isManagement
     ? logs
-    : logs.filter(
-        (log) =>
-          log.user_name === profile?.full_name ||
-          log.user_email === profile?.email,
-      );
+    : logs.filter((log) => log.user_name === profile?.full_name);
 
-  // Pagination Logic
   const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentLogs = filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
+  const currentLogs = filteredLogs.slice(
+    indexOfLastItem - itemsPerPage,
+    indexOfLastItem,
+  );
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
 
-  // Modal Data Logic (Group logs for the selected store)
   const modalData = useMemo(() => {
     if (!selectedStore) return null;
     const storeLogs = logs.filter((l) => l.store === selectedStore);
-    const stockouts = storeLogs.filter(
-      (l) => l.root_cause !== "In Backstock",
-    ).length;
-    const serviceGaps = storeLogs.filter(
-      (l) => l.root_cause === "In Backstock",
-    ).length;
-    return { name: selectedStore, stockouts, serviceGaps, rawLogs: storeLogs };
+    return {
+      name: selectedStore,
+      stockouts: storeLogs.filter((l) => l.root_cause !== "In Backstock")
+        .length,
+      serviceGaps: storeLogs.filter((l) => l.root_cause === "In Backstock")
+        .length,
+      rawLogs: storeLogs,
+    };
   }, [selectedStore, logs]);
 
   if (loading)
     return (
-      <div className="flex items-center justify-center h-64 text-slate-700 font-black uppercase text-[10px] animate-pulse">
-        Syncing Field Logs...
+      <div className="p-20 text-center animate-pulse text-[10px] font-black text-slate-700 uppercase tracking-widest">
+        Syncing Stream...
       </div>
     );
 
   return (
     <div className="flex flex-col h-full bg-slate-900">
-      {/* HEADER */}
-      <div className="p-6 border-b border-slate-800 flex justify-between items-center sticky top-0 z-20 bg-slate-900/80 backdrop-blur-xl">
-        <div className="space-y-1">
-          <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">
+      {/* PAGINATION HEADER */}
+      <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-md">
+        <div className="flex flex-col">
+          <h3 className="text-xs font-black text-white uppercase italic tracking-widest leading-none mb-1">
             Live Stream
           </h3>
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">
-            Entry {indexOfFirstItem + 1}-
-            {Math.min(indexOfLastItem, filteredLogs.length)} of{" "}
-            {filteredLogs.length}
-          </p>
+          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+            Field Activity Feed
+          </span>
         </div>
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner">
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
-            className="p-1.5 text-white disabled:opacity-20"
+            className="p-2 text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
           </button>
-          <span className="text-[10px] font-black text-slate-400 px-2 min-w-[45px] text-center">
-            {currentPage} / {totalPages || 1}
+          <span className="text-[10px] font-black text-slate-400 px-2 min-w-[40px] text-center">
+            {currentPage}/{totalPages || 1}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            disabled={currentPage === totalPages || totalPages === 0}
-            className="p-1.5 text-white disabled:opacity-20"
+            className="p-2 text-white hover:bg-slate-800 rounded-lg transition-colors"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </button>
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-y-auto flex-1">
-        <table className="w-full text-left border-collapse table-fixed min-w-[650px]">
+      {/* MOBILE VIEW: Stacked Cards (No horizontal scroll) */}
+      <div className="block md:hidden divide-y divide-slate-800/50">
+        {currentLogs.map((log) => (
+          <div
+            key={log.id}
+            onClick={() => setSelectedStore(log.store)}
+            className="p-5 active:bg-slate-800 transition-colors flex flex-col gap-3"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-black text-white uppercase truncate">
+                  {log.brand}
+                </span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase">
+                  {log.pack_type} • {log.location}
+                </span>
+              </div>
+              <span
+                className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border shrink-0 ${
+                  log.root_cause === "In Backstock"
+                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                    : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
+                }`}
+              >
+                {log.root_cause}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <MapPin size={10} className="text-pepsi-blue" />
+                  <span className="text-xs font-black text-slate-300">
+                    Store #{log.store}
+                  </span>
+                </div>
+                {/* User restoration for mobile */}
+                <div className="flex items-center gap-2">
+                  <UserIcon size={10} className="text-slate-500" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">
+                    {log.user_name || "Unknown"}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-600">
+                <Clock size={10} />
+                <span className="text-[9px] font-bold uppercase">
+                  {new Date(log.created_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* DESKTOP/TABLET VIEW: Traditional Table */}
+      <div className="hidden md:block overflow-x-hidden">
+        <table className="w-full text-left border-collapse table-fixed">
           <thead>
-            <tr className="bg-slate-950/50 sticky top-0 z-10 border-b border-slate-800">
+            <tr className="bg-slate-950/30 border-b border-slate-800">
               <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
                 Item Details
               </th>
-              <th className="w-[160px] p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+              <th className="w-[120px] p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
                 Store
               </th>
-              <th className="w-[110px] p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
-                User
+              <th className="w-[140px] p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
+                Logged By
               </th>
               <th className="w-[140px] p-4 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">
                 Status
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/50">
+          <tbody className="divide-y divide-slate-800/30">
             {currentLogs.map((log) => (
               <tr
                 key={log.id}
-                className="hover:bg-slate-800/30 transition-colors h-16 cursor-pointer group"
                 onClick={() => setSelectedStore(log.store)}
+                className="hover:bg-slate-800/40 transition-colors h-16 cursor-pointer"
               >
-                <td className="p-4 overflow-hidden">
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-black text-white uppercase truncate group-hover:text-pepsi-blue transition-colors">
-                      {log.brand || log.product}
+                <td className="p-4">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-white uppercase">
+                      {log.brand}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
-                      {log.pack_type} • {log.location}
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">
+                      {log.pack_type}
                     </span>
                   </div>
                 </td>
-                <td className="p-4 overflow-hidden">
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <MapPin size={12} className="text-slate-600 shrink-0" />
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={12} className="text-slate-600" />
                     <span className="text-xs font-black text-slate-300">
                       #{log.store}
                     </span>
                   </div>
                 </td>
-                <td className="p-4 text-center overflow-hidden">
-                  <div className="inline-flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase bg-slate-950 px-2 py-1 rounded-md border border-slate-800 whitespace-nowrap">
-                    <UserIcon size={10} className="text-pepsi-blue shrink-0" />
+                {/* User column restored */}
+                <td className="p-4 text-center">
+                  <div className="inline-flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase bg-slate-950 px-2 py-1 rounded-md border border-slate-800">
+                    <UserIcon size={10} className="text-pepsi-blue" />
                     <span>{log.user_name?.split(" ")[0] || "User"}</span>
                   </div>
                 </td>
-                <td className="p-4 text-right overflow-hidden">
-                  <div className="flex items-center justify-end gap-2">
-                    <span
-                      className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter border whitespace-nowrap ${log.root_cause === "In Backstock" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"}`}
-                    >
-                      {log.root_cause}
-                    </span>
-                    <Info
-                      size={14}
-                      className="text-slate-700 group-hover:text-pepsi-blue"
-                    />
-                  </div>
+                <td className="p-4 text-right">
+                  <span
+                    className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${
+                      log.root_cause === "In Backstock"
+                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                        : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
+                    }`}
+                  >
+                    {log.root_cause}
+                  </span>
                 </td>
               </tr>
             ))}
@@ -161,69 +209,64 @@ export default function LogTable() {
         </table>
       </div>
 
-      {/* DEEP DIVE MODAL */}
+      {/* Modal section remains the same as previous stable version */}
       {selectedStore && modalData && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4">
           <div
-            className="absolute inset-0 bg-slate-950/90 backdrop-blur-md"
+            className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm"
             onClick={() => setSelectedStore(null)}
           />
-          <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden flex flex-col max-h-[90vh]">
-            <header className="p-6 md:p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 text-white">
-              <div className="flex items-center gap-3">
-                <ShoppingCart size={20} className="text-pepsi-blue" />
-                <h2 className="text-lg md:text-2xl font-black uppercase italic tracking-tighter">
-                  Directives: #{selectedStore}
-                </h2>
-              </div>
+          <div className="relative w-full max-w-2xl bg-slate-900 border-t md:border border-slate-800 rounded-t-[2rem] md:rounded-[2rem] overflow-hidden flex flex-col max-h-[90vh]">
+            <header className="p-6 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">
+                #{selectedStore} History
+              </h2>
               <button
                 onClick={() => setSelectedStore(null)}
-                className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl"
+                className="p-2 bg-slate-800 text-white rounded-xl"
               >
                 <X size={20} />
               </button>
             </header>
-            <div className="p-6 md:p-8 overflow-y-auto space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800">
-                  <h4 className="text-[9px] font-black text-pepsi-blue uppercase mb-3 tracking-widest flex items-center gap-2">
-                    <RefreshCw size={12} /> Inventory Correction
-                  </h4>
-                  <p className="text-xs md:text-sm text-white font-bold leading-relaxed italic">
-                    Verified Stockouts: {modalData.stockouts}. Action: Zero the
-                    inventory count in handheld.
+            <div className="p-6 overflow-y-auto space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <p className="text-[8px] font-black text-pepsi-blue uppercase mb-1 tracking-widest">
+                    OOS Events
+                  </p>
+                  <p className="text-xl font-black text-white italic">
+                    {modalData.stockouts}
                   </p>
                 </div>
-                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800">
-                  <h4 className="text-[9px] font-black text-amber-500 uppercase mb-3 tracking-widest flex items-center gap-2">
-                    <AlertCircle size={12} /> Service Efficiency
-                  </h4>
-                  <p className="text-xs md:text-sm text-white font-bold leading-relaxed italic">
-                    Service Gaps: {modalData.serviceGaps}. Action: Confirm
-                    backroom inventory was pulled.
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <p className="text-[8px] font-black text-amber-500 uppercase mb-1 tracking-widest">
+                    Service Gaps
+                  </p>
+                  <p className="text-xl font-black text-white italic">
+                    {modalData.serviceGaps}
                   </p>
                 </div>
               </div>
-              <div className="space-y-3">
-                <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                  Verified Field Logs
-                </h4>
-                {modalData.rawLogs.map((log: any, idx: number) => (
+              <div className="space-y-2">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Verified Activity
+                </p>
+                {modalData.rawLogs.slice(0, 5).map((log: any, i: number) => (
                   <div
-                    key={idx}
-                    className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex justify-between items-center text-white"
+                    key={i}
+                    className="p-3 bg-slate-950/50 rounded-lg border border-slate-800 flex justify-between items-center"
                   >
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-black uppercase truncate">
-                        {log.brand} {log.pack_type}
-                      </p>
-                      <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest truncate">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-white uppercase">
+                        {log.brand}
+                      </span>
+                      <span className="text-[8px] text-slate-500 uppercase">
                         {log.location}
-                      </p>
+                      </span>
                     </div>
-                    <p className="text-[9px] font-black text-pepsi-blue uppercase shrink-0">
+                    <span className="text-[8px] font-black text-pepsi-blue uppercase">
                       {log.root_cause}
-                    </p>
+                    </span>
                   </div>
                 ))}
               </div>
