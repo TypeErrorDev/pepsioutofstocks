@@ -1,5 +1,6 @@
 import "./globals.css";
 import { TrackerProvider } from "@/context/TrackerContext";
+import AuthGate from "@/components/AuthGate";
 
 export default function RootLayout({
   children,
@@ -8,8 +9,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        <TrackerProvider>{children}</TrackerProvider>
+      <body className="antialiased">
+        <TrackerProvider>
+          {/* AuthGate sits inside Provider so it can access the user session */}
+          <AuthGate>{children}</AuthGate>
+        </TrackerProvider>
       </body>
     </html>
   );
