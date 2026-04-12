@@ -2,6 +2,11 @@ import "./globals.css";
 import { TrackerProvider } from "@/context/TrackerContext";
 import AuthGate from "@/components/AuthGate";
 
+export const metadata = {
+  title: "PepsiCo Stockout Tracker",
+  description: "Operational Intelligence for Merchandisers",
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -9,9 +14,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="antialiased bg-slate-950">
         <TrackerProvider>
-          {/* AuthGate sits inside Provider so it can access the user session */}
           <AuthGate>{children}</AuthGate>
         </TrackerProvider>
       </body>

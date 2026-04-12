@@ -1,9 +1,8 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { User, Session } from "@supabase/supabase-js";
+import { User } from "@supabase/supabase-js";
 
-// Define the available roles in the system
 export type UserRole = "admin" | "team_lead" | "sales_rep" | "merchandiser";
 
 interface Profile {
@@ -41,7 +40,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check active sessions and sets the user
     const setData = async () => {
       setLoading(true);
       const {
@@ -50,13 +48,13 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       if (session) {
         setUser(session.user);
         await fetchProfile(session.user.id);
+        await fetchLogs();
       }
       setLoading(false);
     };
 
     setData();
 
-    // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
@@ -72,32 +70,24 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       },
     );
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
-
-    if (!error && data) {
-      setProfile(data);
-    }
+    if (data) setProfile(data);
   };
 
   const fetchLogs = async () => {
-    const { data, error } = await supabase
-      .from("logs") // Pointing to the table with Brand/Pack_Type/GPID
+    const { data } = await supabase
+      .from("logs")
       .select("*")
       .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setLogs(data);
-    }
+    if (data) setLogs(data);
   };
 
   const signIn = async (email: string, pass: string) => {
@@ -118,49 +108,36 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password: pass,
-      options: {
-        data: {
-          full_name: fullName,
-          gpid: gpid,
-          role: role,
-        },
-      },
+      options: { data: { full_name: fullName, gpid: gpid, role: role } },
     });
     if (error) throw error;
-    return data; // Returns the data to satisfy the Promise<any> requirement
+    return data;
   };
 
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      // Explicitly clear state to trigger AuthGate immediately
       setUser(null);
       setProfile(null);
-      window.location.href = "/"; // Force a clean redirect to login
+      setLogs([]);
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
   const addLog = async (logData: any) => {
-    const { error } = await supabase
-      .from("logs") // Pointing strictly to 'logs'
-      .insert([
-        {
-          ...logData,
-          user_name: profile?.full_name,
-          user_email: profile?.email,
-          user_role: profile?.role,
-          gpid: profile?.gpid,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-    if (error) {
-      alert("Submission Failed: " + error.message);
-      throw error;
-    }
-
-    await fetchLogs(); // Refresh the local stream immediately
+    const { error } = await supabase.from("logs").insert([
+      {
+        ...logData,
+        user_name: profile?.full_name,
+        gpid: profile?.gpid,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    if (error) throw error;
+    await fetchLogs();
   };
 
   return (
@@ -184,8 +161,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
 export const useTracker = () => {
   const context = useContext(TrackerContext);
-  if (context === undefined) {
+  if (!context)
     throw new Error("useTracker must be used within a TrackerProvider");
-  }
   return context;
 };
