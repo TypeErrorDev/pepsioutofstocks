@@ -1,17 +1,22 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { useTracker } from "@/context/TrackerContext";
-import { Clock, MapPin, Package, User as UserIcon, Tag } from "lucide-react";
+import {
+  MapPin,
+  User as UserIcon,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 export default function LogTable() {
   const { logs, profile, loading } = useTracker();
 
-  // Define management roles that can see everything
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
 
-  // If not management, filter logs to only show entries made by this user's GPID
-  // (Assuming we store the GPID in the logs table as well, or we can use username/email)
   const filteredLogs = isManagement
     ? logs
     : logs.filter(
@@ -20,116 +25,136 @@ export default function LogTable() {
           log.user_email === profile?.email,
       );
 
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentLogs = filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+
   if (loading)
     return (
-      <div className="flex items-center justify-center h-64 text-slate-700 font-black uppercase tracking-widest text-[10px]">
-        Loading Verfied Logs...
+      <div className="flex items-center justify-center h-64 text-slate-700 font-black uppercase tracking-widest text-[10px] animate-pulse">
+        Syncing Field Logs...
       </div>
     );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-xl">
+    <div className="flex flex-col h-full bg-slate-900">
+      {/* HEADER SECTION */}
+      <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/80 backdrop-blur-xl sticky top-0 z-20">
         <div className="space-y-1">
           <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">
             Live Stream
           </h3>
           <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">
-            {isManagement
-              ? "Global Organizational View"
-              : "Personal Field Activity"}
+            Entry {indexOfFirstItem + 1}-
+            {Math.min(indexOfLastItem, filteredLogs.length)} of{" "}
+            {filteredLogs.length}
           </p>
         </div>
-        <div className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-          <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
-            {filteredLogs.length} Records Detected
+
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner">
+          <button
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="p-1.5 hover:bg-slate-800 rounded-lg disabled:opacity-20 transition-colors text-white"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-[10px] font-black text-slate-400 px-2 min-w-[45px] text-center">
+            {currentPage} / {totalPages || 1}
           </span>
+          <button
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
+            disabled={currentPage === totalPages || totalPages === 0}
+            className="p-1.5 hover:bg-slate-800 rounded-lg disabled:opacity-20 transition-colors text-white"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       </div>
 
       <div className="overflow-y-auto flex-1 custom-scrollbar">
-        <table className="w-full text-left border-collapse">
-          <thead className="sticky top-0 bg-slate-900 z-10 shadow-sm">
-            <tr className="border-b border-slate-800">
-              <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Timestamp
+        <table className="w-full text-left border-collapse table-fixed">
+          <thead>
+            <tr className="bg-slate-950/50 sticky top-0 z-10 border-b border-slate-800">
+              {/* Flexible column for Item Details */}
+              <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                Item Details
               </th>
-              <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Product
-              </th>
-              <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              {/* Increased fixed widths for columns that were wrapping */}
+              <th className="w-[160px] p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
                 Store
               </th>
-              {isManagement && (
-                <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                  Logger
-                </th>
-              )}
-              <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
+              <th className="w-[110px] p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
+                User
+              </th>
+              <th className="w-[140px] p-4 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">
                 Status
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/50">
-            {filteredLogs.map((log) => (
-              <tr
-                key={log.id}
-                className="hover:bg-slate-800/30 transition-colors group"
-              >
-                <td className="p-4">
-                  <div className="flex items-center gap-2 text-slate-400 group-hover:text-slate-200 transition-colors">
-                    <Clock size={12} />
-                    <span className="text-[11px] font-bold tracking-tight">
-                      {new Date(log.created_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                </td>
-                <td className="p-4">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-white uppercase tracking-tight">
-                      {log.product}
-                    </span>
-                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">
-                      {log.location}
-                    </span>
-                  </div>
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500 border border-slate-700">
-                      <MapPin size={12} />
-                    </div>
-                    <span className="text-xs font-black text-slate-300">
-                      #{log.store}
-                    </span>
-                  </div>
-                </td>
-                {isManagement && (
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <UserIcon size={12} className="text-pepsi-blue" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase">
-                        {log.user_name || "Unknown"}
+            {currentLogs.length > 0 ? (
+              currentLogs.map((log) => (
+                <tr
+                  key={log.id}
+                  className="hover:bg-slate-800/30 transition-colors group h-16"
+                >
+                  <td className="p-4 overflow-hidden">
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-black text-white uppercase tracking-tight truncate">
+                        {log.brand || log.product || "Missing Brand"}
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter truncate">
+                        {log.pack_type} • {log.location}
                       </span>
                     </div>
                   </td>
-                )}
-                <td className="p-4 text-right">
-                  <span
-                    className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter border ${
-                      log.root_cause === "In Backstock"
-                        ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                        : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
-                    }`}
-                  >
-                    {log.root_cause}
-                  </span>
+
+                  <td className="p-4 overflow-hidden">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <MapPin size={12} className="text-slate-600 shrink-0" />
+                      <span className="text-xs font-black text-slate-300">
+                        #{log.store}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="p-4 text-center overflow-hidden">
+                    <div className="inline-flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase bg-slate-950 px-2 py-1 rounded-md border border-slate-800 whitespace-nowrap">
+                      <UserIcon
+                        size={10}
+                        className="text-pepsi-blue shrink-0"
+                      />
+                      <span>{log.user_name?.split(" ")[0] || "User"}</span>
+                    </div>
+                  </td>
+
+                  <td className="p-4 text-right overflow-hidden">
+                    <span
+                      className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter border inline-block whitespace-nowrap ${
+                        log.root_cause === "In Backstock"
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                          : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
+                      }`}
+                    >
+                      {log.root_cause}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="p-20 text-center text-[10px] font-black text-slate-600 uppercase tracking-widest italic"
+                >
+                  No verified logs on this page
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

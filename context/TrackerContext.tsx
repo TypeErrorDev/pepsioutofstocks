@@ -104,6 +104,11 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     gpid: string,
     role: UserRole,
   ) => {
+    // SECURITY: Enforce 8-digit limit before hitting the DB
+    if (gpid.length > 8) {
+      throw new Error("Invalid GPID: Personnel ID cannot exceed 8 digits.");
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password: pass,
