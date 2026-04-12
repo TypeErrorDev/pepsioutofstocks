@@ -1,134 +1,159 @@
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
 import { useTracker } from "@/context/TrackerContext";
 import {
-  Send,
-  MapPin,
   Package,
-  LayoutGrid,
+  MapPin,
   AlertCircle,
-  FileText,
+  MessageSquare,
+  Hash,
+  X,
+  CheckCircle2,
+  ChevronRight,
 } from "lucide-react";
 
+const PACK_TYPES = [
+  "18 Pack",
+  "12 Pack",
+  "10 Pack",
+  "8 Pack",
+  "6 Pack",
+  "4 Pack",
+  "28oz",
+  "20oz",
+  "2L",
+  "1.25L",
+  "Singles",
+];
+const LOCATIONS = [
+  "Main Shelf",
+  "Coolers",
+  "Lobby",
+  "Endcap",
+  "Display",
+  "Shippers",
+];
+
 export default function StockoutForm() {
-  const { addLog } = useTracker();
-  const [loading, setLoading] = useState(false);
+  const { addLog, profile } = useTracker();
 
-  // Cleaned State: Category removed since it's a constant for this route
-  const [formData, setFormData] = useState({
-    product: "",
-    store: "",
-    location: "Home Shelf",
-    root_cause: "Unknown",
-    notes: "",
-  });
+  // Form States
+  const [brand, setBrand] = useState("");
+  const [type, setType] = useState("");
+  const [store, setStore] = useState("");
+  const [location, setLocation] = useState("");
+  const [cause, setCause] = useState("In Backstock");
+  const [notes, setNotes] = useState("");
 
-  const submit = async (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!type || !location) {
+      alert("Please select both a Pack Type and a Store Location");
+      return;
+    }
 
-    // Hardcode 'Beverage' here so the database stays standardized
-    // without requiring user input.
-    await addLog({
-      ...formData,
-      category: "Beverage",
-    });
+    setIsSubmitting(true);
+    try {
+      await addLog({
+        product: `${brand} ${type}`.trim(),
+        brand,
+        pack_type: type,
+        store: store, // Now supports "Safeway #3213"
+        location,
+        root_cause: cause,
+        notes,
+        gpid: profile?.gpid, // Ensuring GPID is attached to the log
+      });
 
-    // Smart Reset: Clear product-specific info, but RETAIN Store ID for speed
-    setFormData((prev) => ({
-      ...prev,
-      product: "",
-      root_cause: "Unknown",
-      notes: "",
-    }));
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
 
-    setLoading(false);
+      // Reset brand and notes for next entry, keep Store # for convenience
+      setBrand("");
+      setNotes("");
+    } catch (err) {
+      console.error("Log failed:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const locations = ["Home Shelf", "Cooler", "Endcap", "Lobby", "Checkstand"];
-  const causes = [
-    "Unknown",
-    "Warehouse OOS",
-    "Ordering Error",
-    "In Backstock",
-    "High Demand",
-    "On Sale/Promotion",
-  ];
-
-  const inputStyle =
-    "w-full bg-slate-800/50 text-white p-4 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue focus:bg-slate-800 transition-all font-bold text-sm placeholder:text-slate-600";
-
   return (
-    <form onSubmit={submit} className="flex flex-col h-full space-y-5">
-      <div className="flex items-center gap-2">
-        <div className="p-2 bg-pepsi-blue/10 rounded-lg text-pepsi-blue">
-          <LayoutGrid size={20} />
+    <form onSubmit={handleSubmit} className="space-y-6 relative">
+      {/* Success Overlay */}
+      {showSuccess && (
+        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-[2.5rem] flex flex-col items-center justify-center animate-in zoom-in duration-300">
+          <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 border border-emerald-500/30">
+            <CheckCircle2 size={32} className="text-emerald-500" />
+          </div>
+          <span className="text-[10px] font-black text-white uppercase tracking-[0.4em]">
+            Entry Synced
+          </span>
         </div>
-        <h3 className="text-xl font-black text-white uppercase tracking-tighter">
-          Field Entry
-        </h3>
-      </div>
+      )}
 
-      <div className="space-y-4 flex-1">
-        {/* Product Details */}
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-            Product Details
+      <div className="space-y-5">
+        {/* BRAND INPUT */}
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+            Brand / SKU
           </label>
           <div className="relative">
             <Package
-              className="absolute left-4 top-4 text-slate-500"
-              size={18}
+              className="absolute left-4 top-3.5 text-slate-500"
+              size={16}
             />
             <input
-              className={`${inputStyle} pl-12`}
-              placeholder="e.g. Pepsi 12pk, Starry 20oz..."
-              value={formData.product}
-              onChange={(e) =>
-                setFormData({ ...formData, product: e.target.value })
-              }
+              className="w-full bg-slate-800/40 text-white p-3.5 pl-12 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue text-sm font-bold placeholder:text-slate-600 transition-all"
+              placeholder="e.g. Starry, Pepsi, Dew"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
               required
             />
           </div>
         </div>
 
-        {/* Store ID */}
+        {/* PACK TYPE SELECTOR */}
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-            Store Number
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+            Pack Type
           </label>
-          <div className="relative">
-            <MapPin
-              className="absolute left-4 top-4 text-slate-500"
-              size={18}
-            />
-            <input
-              className={`${inputStyle} pl-12`}
-              placeholder="Store ID"
-              value={formData.store}
-              onChange={(e) =>
-                setFormData({ ...formData, store: e.target.value })
-              }
-              required
-            />
+          <div className="grid grid-cols-3 gap-2">
+            {PACK_TYPES.map((pType) => (
+              <button
+                key={pType}
+                type="button"
+                onClick={() => setType(pType)}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
+                  type === pType
+                    ? "bg-pepsi-blue border-pepsi-blue text-white shadow-[0_0_15px_rgba(0,94,184,0.3)]"
+                    : "bg-slate-800/20 border-slate-700/50 text-slate-500 hover:border-slate-400"
+                }`}
+              >
+                {pType}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Merchandising Location */}
+        {/* LOCATION SELECTOR */}
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-            Merchandising Location
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+            Store Location
           </label>
-          <div className="flex flex-wrap gap-2">
-            {locations.map((loc) => (
+          <div className="grid grid-cols-3 gap-2">
+            {LOCATIONS.map((loc) => (
               <button
                 key={loc}
                 type="button"
-                onClick={() => setFormData({ ...formData, location: loc })}
-                className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
-                  formData.location === loc
-                    ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-blue-900/20"
-                    : "bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-500"
+                onClick={() => setLocation(loc)}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
+                  location === loc
+                    ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.3)]"
+                    : "bg-slate-800/20 border-slate-700/50 text-slate-500 hover:border-slate-400"
                 }`}
               >
                 {loc}
@@ -137,57 +162,102 @@ export default function StockoutForm() {
           </div>
         </div>
 
-        {/* Verified Cause */}
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-            Verified Cause
+        {/* STORE IDENTITY INPUT (Allows Text) */}
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+            Store Identity
           </label>
-          <div className="relative">
-            <AlertCircle
-              className="absolute left-4 top-4 text-slate-500"
-              size={18}
+          <div className="relative group">
+            <MapPin
+              className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-pepsi-blue transition-colors"
+              size={14}
             />
-            <select
-              className={`${inputStyle} pl-12 appearance-none cursor-pointer`}
-              value={formData.root_cause}
-              onChange={(e) =>
-                setFormData({ ...formData, root_cause: e.target.value })
-              }
-            >
-              {causes.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <input
+              type="text"
+              className="w-full bg-slate-800/40 text-white p-3.5 pl-10 pr-10 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
+              placeholder="e.g. Safeway #3213"
+              value={store}
+              onChange={(e) => setStore(e.target.value)}
+              required
+            />
+            {store && (
+              <button
+                type="button"
+                onClick={() => setStore("")}
+                className="absolute right-3 top-3 p-1 rounded-lg bg-slate-700/50 text-slate-400 hover:text-white hover:bg-pepsi-red/20 transition-all"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Field Observations */}
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+        {/* ROOT CAUSE */}
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+            Root Cause
+          </label>
+          <div className="relative">
+            <AlertCircle
+              className="absolute left-4 top-3.5 text-slate-500"
+              size={16}
+            />
+            <select
+              className="w-full bg-slate-800/40 text-white p-3.5 pl-12 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer"
+              value={cause}
+              onChange={(e) => setCause(e.target.value)}
+            >
+              <option value="In Backstock">In Backstock</option>
+              <option value="Warehouse OOS">Warehouse OOS</option>
+              <option value="Ordering Error">Ordering Error</option>
+              <option value="Delivery Delayed">Delivery Delayed</option>
+              <option value="Shelf Capacity Issue">Shelf Capacity Issue</option>
+            </select>
+            <ChevronRight
+              className="absolute right-4 top-4 text-slate-600 pointer-events-none rotate-90"
+              size={14}
+            />
+          </div>
+        </div>
+
+        {/* OBSERVATIONS */}
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Field Observations
           </label>
-          <textarea
-            className={`${inputStyle} h-20 resize-none`}
-            placeholder="Describe constraints or delivery gaps..."
-            value={formData.notes}
-            onChange={(e) =>
-              setFormData({ ...formData, notes: e.target.value })
-            }
-          />
+          <div className="relative">
+            <MessageSquare
+              className="absolute left-4 top-3.5 text-slate-500"
+              size={16}
+            />
+            <textarea
+              className="w-full bg-slate-800/40 text-white p-3.5 pl-12 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue text-sm font-bold min-h-[80px] transition-all"
+              placeholder="Specific notes (e.g. manager requested endcap)..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
       <button
-        disabled={loading}
-        className="w-full bg-pepsi-blue text-white font-black py-5 rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer group"
+        disabled={isSubmitting}
+        className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
       >
-        <Send
-          size={20}
-          className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"
-        />
-        {loading ? "RECORDING..." : "SUBMIT ANALYSIS"}
+        {isSubmitting ? (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            <span className="tracking-widest">SYNCING</span>
+          </div>
+        ) : (
+          <>
+            LOG STOCKOUT
+            <CheckCircle2
+              size={18}
+              className="group-hover:scale-110 transition-transform"
+            />
+          </>
+        )}
       </button>
     </form>
   );
