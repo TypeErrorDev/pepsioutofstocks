@@ -39,39 +39,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const setData = async () => {
-      setLoading(true);
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
-        await fetchLogs();
-      }
-      setLoading(false);
-    };
-    setData();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session) {
-          setUser(session.user);
-          await fetchProfile(session.user.id);
-          await fetchLogs();
-        } else {
-          setUser(null);
-          setProfile(null);
-          setLogs([]);
-        }
-        setLoading(false);
-      },
-    );
-
-    return () => authListener.subscription.unsubscribe();
-  }, []);
-
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
@@ -89,6 +56,50 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     if (data) setLogs(data);
   };
 
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        // Set a safety timeout to prevent infinite hang if network is slow
+        const timeout = setTimeout(() => setLoading(false), 5000);
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          setUser(session.user);
+          // Fetch data in parallel to speed up initialization
+          await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
+        }
+
+        clearTimeout(timeout);
+      } catch (error) {
+        console.error("Initialization error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setUser(session.user);
+          await fetchProfile(session.user.id);
+          await fetchLogs();
+        } else {
+          setUser(null);
+          setProfile(null);
+          setLogs([]);
+        }
+        setLoading(false);
+      },
+    );
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
   const signIn = async (email: string, pass: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -104,10 +115,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     gpid: string,
     role: UserRole,
   ) => {
-    // SECURITY: Enforce 8-digit limit before hitting the DB
-    if (gpid.length > 8) {
-      throw new Error("Invalid GPID: Personnel ID cannot exceed 8 digits.");
-    }
+    if (gpid.length > 8) throw new Error("GPID cannot exceed 8 digits.");
 
     const { data, error } = await supabase.auth.signUp({
       email,

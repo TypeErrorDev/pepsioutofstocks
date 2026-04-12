@@ -2,6 +2,7 @@
 import React from "react";
 import { useTracker } from "@/context/TrackerContext";
 import { Package, AlertTriangle, Zap, CheckCircle } from "lucide-react";
+import LogTable from "./LogTable"; // Ensure this import is present
 
 export default function Dashboard() {
   const { profile, logs } = useTracker();
@@ -36,6 +37,7 @@ export default function Dashboard() {
         </div>
       </header>
 
+      {/* STAT CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Market Logs"
@@ -55,6 +57,11 @@ export default function Dashboard() {
           icon={<CheckCircle size={24} />}
           color="text-emerald-500"
         />
+      </div>
+
+      {/* RESTORED LIVE STREAM SECTION */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+        <LogTable />
       </div>
     </div>
   );

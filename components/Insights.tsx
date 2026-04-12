@@ -128,17 +128,22 @@ export default function Insights() {
         </div>
       </header>
 
+      {/* VISUALIZATION GRID */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] shadow-xl min-h-[300px]">
+        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] shadow-xl min-h-[350px] flex flex-col">
           <h3 className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6">
             Volume Risk by SKU
           </h3>
-          <div className="h-[200px] w-full min-w-0">
+          {/* Container with explicit min-height to prevent width(-1) errors */}
+          <div
+            className="flex-1 w-full"
+            style={{ minHeight: "200px", minWidth: "0" }}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={analytics.chartData}
                 layout="vertical"
-                margin={{ left: 20, right: 20 }}
+                margin={{ left: 20, right: 30 }}
               >
                 <XAxis type="number" hide />
                 <YAxis
@@ -179,9 +184,8 @@ export default function Insights() {
               Replenishment Priority
             </h3>
             <p className="text-white/80 text-xs md:text-sm font-bold leading-relaxed mb-6 max-w-lg">
-              Cross-referencing {analytics.total} field observations. Priority
-              stores require handheld inventory corrections to fix replenishment
-              cycles.
+              Priority stores require handheld inventory corrections to fix
+              replenishment cycles.
             </p>
             <div className="flex flex-wrap gap-3">
               <div className="bg-white/10 px-4 py-2 rounded-xl border border-white/10 text-[9px] font-black text-white uppercase tracking-widest">
@@ -203,6 +207,7 @@ export default function Insights() {
         </div>
       </section>
 
+      {/* ACCOUNT PRIORITY INDEX */}
       <section className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl">
         <div className="p-6 md:p-8 border-b border-slate-800 bg-slate-900/50">
           <h3 className="text-lg md:text-xl font-black text-white uppercase italic tracking-tighter">
@@ -276,6 +281,7 @@ export default function Insights() {
         </div>
       </section>
 
+      {/* MODAL */}
       {selectedStore && modalData && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div
@@ -283,8 +289,8 @@ export default function Insights() {
             onClick={() => setSelectedStore(null)}
           />
           <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden flex flex-col max-h-[90vh]">
-            <header className="p-6 md:p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-              <div className="flex items-center gap-3 text-white">
+            <header className="p-6 md:p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 text-white">
+              <div className="flex items-center gap-3">
                 <ShoppingCart size={20} className="text-pepsi-blue" />
                 <h2 className="text-lg md:text-2xl font-black uppercase italic tracking-tighter">
                   Directives: #{selectedStore}
@@ -292,7 +298,7 @@ export default function Insights() {
               </div>
               <button
                 onClick={() => setSelectedStore(null)}
-                className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl"
+                className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl"
               >
                 <X size={20} />
               </button>
@@ -305,7 +311,7 @@ export default function Insights() {
                   </h4>
                   <p className="text-xs md:text-sm text-white font-bold leading-relaxed italic">
                     Verified Stockouts: {modalData.stockouts}. Action: Zero the
-                    inventory count in handheld to trigger replenishment.
+                    inventory count in handheld.
                   </p>
                 </div>
                 <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800">
@@ -314,8 +320,7 @@ export default function Insights() {
                   </h4>
                   <p className="text-xs md:text-sm text-white font-bold leading-relaxed italic">
                     Service Gaps: {modalData.serviceGaps}. Action: Confirm
-                    backroom inventory was pulled before merchandiser
-                    end-of-shift.
+                    backroom inventory was pulled.
                   </p>
                 </div>
               </div>
@@ -326,21 +331,19 @@ export default function Insights() {
                 {modalData.rawLogs.map((log: any, idx: number) => (
                   <div
                     key={idx}
-                    className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex justify-between items-center"
+                    className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex justify-between items-center text-white"
                   >
                     <div className="min-w-0">
-                      <p className="text-[11px] font-black text-white uppercase truncate">
+                      <p className="text-[11px] font-black uppercase truncate">
                         {log.brand} {log.pack_type}
                       </p>
                       <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest truncate">
                         {log.location}
                       </p>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[9px] font-black text-pepsi-blue uppercase">
-                        {log.root_cause}
-                      </p>
-                    </div>
+                    <p className="text-[9px] font-black text-pepsi-blue uppercase shrink-0">
+                      {log.root_cause}
+                    </p>
                   </div>
                 ))}
               </div>
