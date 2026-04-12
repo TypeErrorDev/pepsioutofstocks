@@ -59,33 +59,23 @@ export default function LogTable() {
 
   return (
     <div className="flex flex-col h-full bg-slate-900 overflow-hidden rounded-[2rem] border border-slate-800">
+      {/* Fixed Spacing Header */}
       <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/30">
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          Active Alerts
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+          Historical Frequency Engine Active
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 ml-4">
+          {" "}
+          {/* Added margin and gap here */}
           <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10px] font-black text-emerald-500 uppercase">
-            Live
+          <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">
+            Synced
           </span>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <table className="w-full text-left table-fixed">
-          <thead className="bg-slate-950/50 sticky top-0 z-10 hidden md:table-header-group">
-            <tr>
-              <th className="p-5 text-[10px] font-black text-slate-500 uppercase border-b border-slate-800 w-2/3">
-                Product
-              </th>
-              <th className="p-5 text-[10px] font-black text-slate-500 uppercase border-b border-slate-800 text-center">
-                Status
-              </th>
-              <th className="p-5 text-[10px] font-black text-slate-500 uppercase border-b border-slate-800 text-center">
-                Detail
-              </th>
-            </tr>
-          </thead>
           <tbody className="divide-y divide-slate-800/50">
             {logs.map((log) => (
               <tr
@@ -110,7 +100,7 @@ export default function LogTable() {
                     </div>
                   </div>
                 </td>
-                <td className="p-4 md:p-6 text-center align-middle">
+                <td className="p-4 md:p-6 text-center align-middle w-24">
                   <span
                     className={`inline-flex items-center justify-center h-6 px-3 rounded-lg text-[9px] font-black border ${
                       log.priority === "Critical"
@@ -121,7 +111,7 @@ export default function LogTable() {
                     {log.priority.toUpperCase()}
                   </span>
                 </td>
-                <td className="p-4 md:p-6 text-center align-middle">
+                <td className="p-4 md:p-6 text-center align-middle w-12">
                   <ChevronRight size={18} className="mx-auto text-slate-700" />
                 </td>
               </tr>
@@ -130,20 +120,17 @@ export default function LogTable() {
         </table>
       </div>
 
-      {/* Detail Modal Overlay */}
+      {/* Full Detail Modal */}
       {selectedLog && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-lg bg-slate-900 rounded-t-[2.5rem] sm:rounded-[2.5rem] border-x border-t sm:border border-slate-800 shadow-2xl p-6 sm:p-8 transform animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-pepsi-blue animate-pulse" />
-                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                  Historical Trend Analysis
-                </h4>
-              </div>
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                Item Intelligence
+              </h4>
               <button
                 onClick={() => setSelectedLog(null)}
-                className="p-2 bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-2 bg-slate-800 rounded-xl text-slate-400 cursor-pointer"
               >
                 <X size={20} />
               </button>
@@ -151,30 +138,30 @@ export default function LogTable() {
 
             <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
               <header className="border-b border-slate-800 pb-6">
-                <h2 className="text-2xl font-black text-white leading-tight uppercase tracking-tighter mb-2">
+                <h2 className="text-2xl font-black text-white leading-tight uppercase mb-2">
                   {selectedLog.product}
                 </h2>
-                <div className="flex flex-wrap gap-3">
-                  <span className="text-[10px] font-black text-pepsi-blue bg-pepsi-blue/10 px-3 py-1 rounded-lg border border-pepsi-blue/20 uppercase tracking-widest">
+                <div className="flex gap-2">
+                  <span className="text-[9px] font-black text-pepsi-blue bg-pepsi-blue/10 px-2 py-1 rounded border border-pepsi-blue/20 uppercase">
                     Store: {selectedLog.store}
                   </span>
-                  <span className="text-[10px] font-black text-slate-400 bg-slate-800 px-3 py-1 rounded-lg border border-slate-700 uppercase tracking-widest">
-                    Loc: {selectedLog.location}
+                  <span className="text-[9px] font-black text-slate-400 bg-slate-800 px-2 py-1 rounded border border-slate-700 uppercase">
+                    {selectedLog.location}
                   </span>
                 </div>
               </header>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-950 p-5 rounded-3xl border border-slate-800 shadow-inner">
+                <div className="bg-slate-950 p-5 rounded-3xl border border-slate-800">
                   <Calendar size={18} className="text-slate-600 mb-2" />
                   <p className="text-2xl font-black text-white">
                     {historicalStats?.totalOccurrences}
                   </p>
                   <p className="text-[9px] font-black text-slate-500 uppercase">
-                    Route Hits
+                    Total Logs
                   </p>
                 </div>
-                <div className="bg-slate-950 p-5 rounded-3xl border border-slate-800 shadow-inner">
+                <div className="bg-slate-950 p-5 rounded-3xl border border-slate-800">
                   <TrendingUp size={18} className="text-emerald-500 mb-2" />
                   <p className="text-2xl font-black text-white">
                     {historicalStats?.avgDays}
@@ -186,54 +173,50 @@ export default function LogTable() {
               </div>
 
               <div className="bg-emerald-500/5 border border-emerald-500/10 p-5 rounded-3xl">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 size={16} className="text-emerald-500" />
-                  <p className="text-[10px] font-black text-emerald-500 uppercase">
+                <div className="flex items-center gap-2 mb-2 text-emerald-500">
+                  <CheckCircle2 size={16} />
+                  <p className="text-[10px] font-black uppercase">
                     Prevention Plan
                   </p>
                 </div>
                 <p className="text-xs text-slate-300 font-medium leading-relaxed italic">
                   {selectedLog.root_cause === "High Demand"
-                    ? "Recommendation: Increase holding power via secondary display."
-                    : "Action: Review backroom inventory with Store Lead."}
+                    ? "Recommendation: Secure secondary display to increase holding capacity."
+                    : "Action: Review delivery cycle vs. store pull with Management."}
                 </p>
               </div>
 
-              <div className="bg-slate-950 p-5 rounded-3xl border border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Clock size={18} className="text-pepsi-red" />
+              <div className="bg-slate-950 p-5 rounded-3xl border border-slate-800">
+                <div className="flex items-center gap-3 mb-4">
+                  <AlertCircle size={18} className="text-pepsi-red" />
                   <div>
-                    <p className="text-[9px] font-black text-slate-500 uppercase mb-0.5">
-                      Last Seen OOS
+                    <p className="text-[9px] font-black text-slate-500 uppercase">
+                      Root Cause
                     </p>
-                    <p className="text-sm font-black text-white">
-                      {historicalStats?.lastOOSDate}
+                    <p className="text-sm font-black text-white uppercase">
+                      {selectedLog.root_cause || "Unknown"}
                     </p>
                   </div>
                 </div>
-                <span className="px-3 py-1 rounded-lg bg-slate-800 text-[10px] font-black text-white">
-                  {selectedLog.priority}
-                </span>
-              </div>
-
-              {selectedLog.notes && (
-                <div className="bg-slate-800/50 p-5 rounded-3xl border border-slate-700">
-                  <div className="flex items-center gap-2 mb-2 text-slate-500">
-                    <FileText size={14} />
-                    <p className="text-[9px] font-black uppercase tracking-widest">
+                {selectedLog.notes && (
+                  <div className="pt-4 border-t border-slate-800">
+                    <p className="text-[9px] font-black text-slate-500 uppercase mb-2">
                       Field Notes
                     </p>
+                    <p className="text-xs text-slate-400 italic">
+                      "{selectedLog.notes}"
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed font-medium">
-                    "{selectedLog.notes}"
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            <div className="pt-6 sm:pb-0 pb-10">
-              <button className="w-full py-5 bg-pepsi-blue text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-blue-900/20 hover:brightness-110 active:scale-95 transition-all cursor-pointer">
-                Close Analysis
+            <div className="pt-6 pb-8 sm:pb-0">
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="w-full py-5 bg-pepsi-blue text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-blue-900/20 cursor-pointer"
+              >
+                Close Intelligence
               </button>
             </div>
           </div>
