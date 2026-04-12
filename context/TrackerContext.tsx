@@ -17,7 +17,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<any[]>([]);
 
   const registerUser = async (name: string) => {
-    const cleanName = name.trim().toLowerCase(); // Ensure lowercase consistency
+    const cleanName = name.trim().toLowerCase();
     let { data: profile } = await supabase
       .from("profiles")
       .select("*")
@@ -58,10 +58,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!userName) return;
-
     fetchLogs();
-
-    // Setup Realtime Subscription
     const channel = supabase
       .channel(`db-changes-${userName}`)
       .on(
@@ -72,22 +69,57 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
           table: "stockouts",
           filter: `user_name=eq.${userName}`,
         },
-        (payload) => {
-          console.log("Realtime Update:", payload);
-          fetchLogs();
-        },
+        () => fetchLogs(),
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
   }, [userName]);
 
   const addLog = async (entry: any) => {
-    const { error } = await supabase
+    if (!userName) return;
+
+    // 1. Calculate the timestamps for our checks
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // 2. Query historical frequency for this product (including archived ones)
+    const { data: history } = await supabase
       .from("stockouts")
-      .insert([{ ...entry, user_name: userName }]);
+      .select("created_at")
+      .eq("user_name", userName)
+      .eq("product", entry.product);
+
+    const recentCount =
+      history?.filter((h) => new Date(h.created_at) >= sevenDaysAgo).length ||
+      0;
+    const monthlyCount =
+      history?.filter((h) => new Date(h.created_at) >= thirtyDaysAgo).length ||
+      0;
+
+    // 3. Determine Priority based on counts
+    let autoPriority = "Low";
+    if (recentCount >= 5) {
+      autoPriority = "Critical";
+    } else if (recentCount >= 2) {
+      autoPriority = "High";
+    } else if (monthlyCount > 1) {
+      autoPriority = "Medium";
+    }
+
+    // 4. Insert the log with the calculated priority
+    const { error } = await supabase.from("stockouts").insert([
+      {
+        ...entry,
+        user_name: userName,
+        priority: autoPriority,
+      },
+    ]);
+
     if (error) console.error("Insert Error:", error.message);
   };
 
