@@ -2,7 +2,7 @@
 import React from "react";
 import { useTracker } from "@/context/TrackerContext";
 import { Package, AlertTriangle, Zap, CheckCircle } from "lucide-react";
-import LogTable from "./LogTable"; // Ensure this import is present
+import LogTable from "./LogTable";
 
 export default function Dashboard() {
   const { profile, logs } = useTracker();
@@ -20,7 +20,6 @@ export default function Dashboard() {
           </h2>
         </div>
 
-        {/* ANIMATED SYNC INDICATOR */}
         <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-slate-900 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
           <div className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -59,8 +58,8 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* RESTORED LIVE STREAM SECTION */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+      {/* RESTORED LIVE STREAM TABLE */}
+      <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden">
         <LogTable />
       </div>
     </div>
