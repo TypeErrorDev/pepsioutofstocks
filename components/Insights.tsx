@@ -11,11 +11,9 @@ import {
   Cell,
 } from "recharts";
 import {
-  TrendingUp,
   ArrowLeft,
   X,
   MapPin,
-  Package,
   Info,
   Activity,
   ShoppingCart,
@@ -41,7 +39,6 @@ export default function Insights() {
     > = {};
 
     logs.forEach((l) => {
-      // Group by Store
       if (!storeMap[l.store]) {
         storeMap[l.store] = {
           name: l.store,
@@ -57,7 +54,6 @@ export default function Insights() {
       if (l.root_cause === "In Backstock") s.serviceGaps++;
       else s.stockouts++;
 
-      // SKU Trend Analysis
       const itemKey = `${l.brand} ${l.pack_type}`;
       if (!itemAnalysis[itemKey]) {
         itemAnalysis[itemKey] = { name: itemKey, count: 0, stores: new Set() };
@@ -112,7 +108,6 @@ export default function Insights() {
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 md:px-10 py-6 md:py-10 space-y-6 md:space-y-10 pb-24 relative">
-      {/* MOBILE-OPTIMIZED HEADER */}
       <header className="flex items-center gap-4">
         <Link
           href="/"
@@ -133,19 +128,17 @@ export default function Insights() {
         </div>
       </header>
 
-      {/* VISUALIZATION GRID - RE-ADDED */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-        {/* SKU FREQUENCY - Crucial for Sales Lead */}
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-xl">
+        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 p-6 md:p-8 rounded-[2rem] shadow-xl min-h-[300px]">
           <h3 className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-6">
             Volume Risk by SKU
           </h3>
-          <div className="h-[250px] md:h-[200px]">
+          <div className="h-[200px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={analytics.chartData}
                 layout="vertical"
-                margin={{ left: -20 }}
+                margin={{ left: 20, right: 20 }}
               >
                 <XAxis type="number" hide />
                 <YAxis
@@ -176,8 +169,7 @@ export default function Insights() {
           </div>
         </div>
 
-        {/* HIGH-LEVEL SUMMARY - Crucial for Manager */}
-        <div className="lg:col-span-7 bg-pepsi-blue p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] shadow-xl relative overflow-hidden flex flex-col justify-center">
+        <div className="lg:col-span-7 bg-pepsi-blue p-6 md:p-10 rounded-[2rem] shadow-xl relative overflow-hidden flex flex-col justify-center">
           <Activity
             className="absolute right-[-10px] bottom-[-10px] text-white/10"
             size={150}
@@ -211,15 +203,14 @@ export default function Insights() {
         </div>
       </section>
 
-      {/* ACCOUNT PRIORITY INDEX */}
-      <section className="bg-slate-900 border border-slate-800 rounded-[2rem] md:rounded-[3rem] overflow-hidden shadow-2xl">
+      <section className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl">
         <div className="p-6 md:p-8 border-b border-slate-800 bg-slate-900/50">
           <h3 className="text-lg md:text-xl font-black text-white uppercase italic tracking-tighter">
             Account Priority Index
           </h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[600px] md:table-fixed">
+          <table className="w-full text-left border-collapse table-fixed min-w-[650px]">
             <thead>
               <tr className="bg-slate-950/50 border-b border-slate-800">
                 <th className="p-6 text-[9px] font-black text-slate-500 uppercase tracking-widest">
@@ -228,7 +219,7 @@ export default function Insights() {
                 <th className="w-[140px] p-6 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
                   Priority
                 </th>
-                <th className="p-6 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <th className="w-[280px] p-6 text-[9px] font-black text-slate-500 uppercase tracking-widest">
                   Direct Action
                 </th>
                 <th className="w-[80px] p-6 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest text-transparent">
@@ -240,7 +231,7 @@ export default function Insights() {
               {analytics.directives.map((store, i) => (
                 <tr
                   key={i}
-                  className="hover:bg-slate-800/20 transition-all group"
+                  className="hover:bg-slate-800/20 transition-all group h-16"
                 >
                   <td className="p-6">
                     <span className="text-sm font-black text-white uppercase tracking-tight">
@@ -261,7 +252,7 @@ export default function Insights() {
                     </span>
                   </td>
                   <td className="p-6">
-                    <div className="flex flex-col">
+                    <div className="flex flex-col whitespace-nowrap">
                       <span className="text-[11px] font-black text-white uppercase italic tracking-tight">
                         {store.action}
                       </span>
@@ -285,7 +276,6 @@ export default function Insights() {
         </div>
       </section>
 
-      {/* MOBILE-RESPONSIVE MODAL */}
       {selectedStore && modalData && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div
@@ -329,7 +319,6 @@ export default function Insights() {
                   </p>
                 </div>
               </div>
-
               <div className="space-y-3">
                 <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">
                   Verified Field Logs

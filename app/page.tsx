@@ -89,7 +89,7 @@ export default function AuthPage() {
 
           <form
             onSubmit={handleSubmit}
-            className="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl space-y-4"
+            className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl space-y-4"
           >
             {isRegistering && (
               <>
@@ -234,7 +234,7 @@ export default function AuthPage() {
   // --- DASHBOARD VIEW ---
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-10">
+      <div className="max-w-400 mx-auto p-4 md:p-8 lg:p-10">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-pepsi-blue mb-1">
@@ -267,7 +267,7 @@ export default function AuthPage() {
             )}
 
             <div className="flex items-center gap-3 pl-4 border-l border-slate-800">
-              <div className="flex flex-col items-end hidden sm:flex">
+              <div className="flex-col items-end hidden sm:flex">
                 <span className="text-[10px] font-black text-white uppercase tracking-tighter">
                   {profile?.full_name || user.email}
                 </span>
@@ -284,12 +284,12 @@ export default function AuthPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-10">
-            <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl">
+            <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl">
               <StockoutForm />
             </div>
           </div>
-          <div className="lg:col-span-8 min-h-[600px]">
-            <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] shadow-2xl h-full flex flex-col overflow-hidden">
+          <div className="lg:col-span-8 min-h-150">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl h-full flex flex-col overflow-hidden">
               <LogTable />
             </div>
           </div>

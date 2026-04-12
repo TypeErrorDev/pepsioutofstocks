@@ -62,7 +62,7 @@ export default function Dashboard() {
 
 function StatCard({ title, value, icon, color }: any) {
   return (
-    <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl group transition-all hover:border-slate-700">
+    <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-xl group transition-all hover:border-slate-700">
       <div
         className={`mb-4 ${color} opacity-80 group-hover:opacity-100 transition-opacity`}
       >
