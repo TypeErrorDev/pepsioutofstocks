@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useTracker } from "@/context/TrackerContext";
 import {
   BarChart,
@@ -8,242 +8,289 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  CartesianGrid,
 } from "recharts";
 import {
   TrendingUp,
-  AlertTriangle,
-  PackageCheck,
+  ArrowLeft,
+  ShieldAlert,
+  Zap,
+  Clock,
+  X,
+  MapPin,
+  Package,
+  Info,
+  Activity,
   Target,
-  CheckCircle2,
 } from "lucide-react";
+import Link from "next/link";
 
 export default function Insights() {
-  const { logs } = useTracker();
+  const { logs, loading } = useTracker();
+  const [selectedStore, setSelectedStore] = useState<string | null>(null);
 
-  const data = useMemo(() => {
-    if (logs.length === 0) return null;
+  const analytics = useMemo(() => {
+    if (!logs || logs.length === 0) return null;
 
-    // --- 1. SKU Frequency Analysis (Bar Chart) ---
-    const productCounts: Record<string, number> = {};
-    logs.forEach(
-      (l) => (productCounts[l.product] = (productCounts[l.product] || 0) + 1),
-    );
-    const topProducts = Object.entries(productCounts)
+    const storeMap: Record<string, any> = {};
+    const itemTotals: Record<string, number> = {};
+
+    logs.forEach((l) => {
+      // Store Aggregation
+      if (!storeMap[l.store]) {
+        storeMap[l.store] = {
+          name: l.store,
+          count: 0,
+          causes: {},
+          items: {},
+          rawLogs: [],
+        };
+      }
+      storeMap[l.store].count += 1;
+      storeMap[l.store].rawLogs.push(l);
+      storeMap[l.store].causes[l.root_cause] =
+        (storeMap[l.store].causes[l.root_cause] || 0) + 1;
+
+      const itemKey =
+        `${l.brand || ""} ${l.pack_type || ""}`.trim() || "Unknown Item";
+      storeMap[l.store].items[itemKey] =
+        (storeMap[l.store].items[itemKey] || 0) + 1;
+
+      // Global Item Aggregation for Chart
+      itemTotals[itemKey] = (itemTotals[itemKey] || 0) + 1;
+    });
+
+    const storeHealth = Object.values(storeMap)
+      .map((s: any) => {
+        const topCause = Object.entries(s.causes).sort(
+          (a: any, b: any) => b[1] - a[1],
+        )[0][0];
+        const topItem = Object.entries(s.items).sort(
+          (a: any, b: any) => b[1] - a[1],
+        )[0][0];
+        return {
+          ...s,
+          topCause,
+          topItem,
+          riskLevel:
+            s.count > 5 ? "Critical" : s.count > 2 ? "At Risk" : "Stable",
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+
+    const repeatOffenders = Object.entries(itemTotals)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    // --- 2. Verified Cause Distribution (Pie Chart) ---
-    const causeCounts: Record<string, number> = {};
-    logs.forEach(
-      (l) => (causeCounts[l.root_cause] = (causeCounts[l.root_cause] || 0) + 1),
-    );
-    const causeData = Object.entries(causeCounts).map(([name, value]) => ({
-      name,
-      value,
-    }));
-
-    // --- 3. 7-Day Velocity Trend (Line Chart) ---
-    const last7Days = [...Array(7)]
-      .map((_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        return d.toLocaleDateString("en-US", { weekday: "short" });
-      })
-      .reverse();
-
-    const trendData = last7Days.map((day) => {
-      const count = logs.filter((log) => {
-        const logDay = new Date(log.created_at).toLocaleDateString("en-US", {
-          weekday: "short",
-        });
-        return logDay === day;
-      }).length;
-      return { day, count };
-    });
-
-    return {
-      topProducts,
-      causeData,
-      trendData,
-      total: logs.length,
-      topItem: topProducts[0],
-    };
+    return { storeHealth, repeatOffenders, total: logs.length };
   }, [logs]);
 
-  const COLORS = ["#005cb4", "#e31837", "#f59e0b", "#10b981", "#6366f1"];
+  const modalData = useMemo(() => {
+    if (!selectedStore || !analytics) return null;
+    return analytics.storeHealth.find((s) => s.name === selectedStore);
+  }, [selectedStore, analytics]);
 
-  if (!data)
+  if (loading)
     return (
-      <div className="p-20 text-center bg-slate-900 rounded-[2.5rem] border border-slate-800 border-dashed text-slate-500 uppercase font-black text-xs tracking-widest">
-        Awaiting Data Stream for 7-Day Analysis...
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-pepsi-blue/20 border-t-pepsi-blue rounded-full animate-spin" />
+      </div>
+    );
+
+  if (!analytics)
+    return (
+      <div className="max-w-[1400px] mx-auto p-20 text-center border-2 border-dashed border-slate-800 rounded-[3rem] mt-10">
+        <Activity className="mx-auto text-slate-800 mb-4" size={48} />
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          Awaiting Field Data...
+        </p>
       </div>
     );
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Executive Summary KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
-          <TrendingUp className="text-pepsi-blue mb-4" size={24} />
-          <p className="text-4xl font-black text-white">{data.total}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">
-            Route Exceptions
-          </p>
+    <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-10 space-y-10 pb-24 relative">
+      {/* HEADER */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-center gap-6">
+          <Link
+            href="/"
+            className="p-4 bg-slate-900 border border-slate-800 rounded-[1.5rem] text-slate-400 hover:text-white transition-all shadow-xl"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <div className="flex items-center gap-2 text-pepsi-blue mb-1">
+              <TrendingUp size={14} />
+              <span className="text-[10px] font-black uppercase tracking-[0.3em]">
+                Market Intelligence
+              </span>
+            </div>
+            <h1 className="text-3xl font-black uppercase tracking-tighter italic text-white">
+              Operational <span className="text-pepsi-blue">Insights</span>
+            </h1>
+          </div>
         </div>
-
-        <div className="bg-pepsi-red/10 border border-pepsi-red/20 p-8 rounded-[2.5rem] shadow-xl">
-          <AlertTriangle className="text-pepsi-red mb-4" size={24} />
-          <p className="text-xl font-black text-white uppercase truncate">
-            {data.topItem.name}
-          </p>
-          <p className="text-[10px] font-black text-pepsi-red uppercase tracking-widest mt-1">
-            Critical Loss Risk
-          </p>
+        <div className="bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl flex items-center gap-3">
+          <Clock className="text-slate-500" size={14} />
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            Last Sync:{" "}
+            {new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
         </div>
+      </header>
 
-        <div className="bg-emerald-500/10 border border-emerald-500/20 p-8 rounded-[2.5rem] shadow-xl">
-          <PackageCheck className="text-emerald-500 mb-4" size={24} />
-          <p className="text-4xl font-black text-white">
-            {(
-              (logs.filter((l) => l.priority !== "Critical").length /
-                data.total) *
-              100
-            ).toFixed(0)}
-            %
-          </p>
-          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1">
-            Shelf Health Index
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* 7-Day Velocity Trend */}
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xs font-black text-white uppercase tracking-widest">
-              7-Day Outage Velocity
+      {/* VISUALIZATION GRID */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-7 bg-pepsi-blue p-8 md:p-12 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+          <Zap
+            className="absolute right-[-20px] bottom-[-20px] text-white/10 group-hover:scale-110 transition-transform"
+            size={200}
+          />
+          <div className="relative z-10">
+            <h3 className="text-white font-black uppercase italic tracking-tighter text-3xl mb-3">
+              Predictive Audit
             </h3>
-            <span className="text-[9px] bg-slate-800 text-slate-400 px-2 py-1 rounded font-black tracking-tighter">
-              LIVE TREND
-            </span>
-          </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.trendData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#1e293b"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="day"
-                  stroke="#475569"
-                  fontSize={10}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  stroke="#475569"
-                  fontSize={10}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#0f172a",
-                    border: "1px solid #1e293b",
-                    borderRadius: "12px",
-                    fontSize: "10px",
-                    fontWeight: "900",
-                  }}
-                  itemStyle={{ color: "#005cb4" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#005cb4"
-                  strokeWidth={4}
-                  dot={{
-                    r: 6,
-                    fill: "#005cb4",
-                    strokeWidth: 2,
-                    stroke: "#0f172a",
-                  }}
-                  activeDot={{ r: 8 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Cause Distribution (Donut) */}
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl">
-          <h3 className="text-xs font-black text-white uppercase tracking-widest mb-8">
-            Verified Root Causes
-          </h3>
-          <div className="h-64 w-full relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={data.causeData}
-                  innerRadius={60}
-                  outerRadius={85}
-                  paddingAngle={8}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {data.causeData.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center Text for Donut */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-black text-white">
-                {data.total}
-              </span>
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">
-                Total Analysis
-              </span>
+            <p className="text-white/70 text-sm font-bold leading-relaxed mb-8 max-w-md">
+              Analyzing {analytics.total} field logs to identify store gaps
+              before they impact daily sales volume.
+            </p>
+            <div className="bg-white/20 inline-block px-5 py-2.5 rounded-xl text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
+              {
+                analytics.storeHealth.filter((s) => s.riskLevel === "Critical")
+                  .length
+              }{" "}
+              Critical Points
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Prevention Strategy Logic */}
-      <div className="bg-pepsi-blue/5 border border-pepsi-blue/10 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center gap-6 shadow-xl">
-        <div className="p-4 bg-pepsi-blue rounded-3xl shadow-lg shadow-blue-900/40">
-          <Target className="text-white" size={32} />
+        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl flex flex-col">
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8">
+            Volume Risk by SKU
+          </h3>
+          <div className="flex-1 min-h-[150px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.repeatOffenders}>
+                <XAxis dataKey="name" hide />
+                <Tooltip
+                  cursor={{ fill: "#1e293b" }}
+                  contentStyle={{
+                    backgroundColor: "#020617",
+                    border: "none",
+                    borderRadius: "12px",
+                    fontSize: "10px",
+                  }}
+                />
+                <Bar dataKey="count" fill="#e6192e" radius={[8, 8, 4, 4]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="flex-1 text-center md:text-left">
-          <h4 className="text-white font-black uppercase tracking-tighter text-lg mb-1">
-            Preventative Mitigation Strategy
-          </h4>
-          <p className="text-slate-400 text-sm font-medium">
-            Data confirms{" "}
-            <span className="text-white font-bold">{data.topItem.name}</span> is
-            the primary driver of shelf gaps. Suggested: Adjust next delivery
-            par by{" "}
-            <span className="text-emerald-400 font-black">
-              +{((data.topItem.count / data.total) * 50).toFixed(0)}%
-            </span>{" "}
-            to prevent recurring outages.
-          </p>
+      </section>
+
+      {/* VULNERABILITY INDEX */}
+      <section className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl">
+        <div className="p-8 md:p-10 border-b border-slate-800 flex justify-between items-center">
+          <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">
+            Store Vulnerability Index
+          </h3>
+          <ShieldAlert className="text-pepsi-red" size={24} />
         </div>
-      </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-950/50">
+                <th className="p-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  Store Account
+                </th>
+                <th className="p-8 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50">
+              {analytics.storeHealth.map((store, i) => (
+                <tr key={i} className="hover:bg-slate-800/20 transition-colors">
+                  <td className="p-8">
+                    <button
+                      onClick={() => setSelectedStore(store.name)}
+                      className="flex items-center gap-2 font-black text-white uppercase text-sm tracking-tighter hover:text-pepsi-blue transition-all"
+                    >
+                      <MapPin size={14} className="text-slate-600" /> #
+                      {store.name}
+                    </button>
+                  </td>
+                  <td className="p-8 text-right">
+                    <button
+                      onClick={() => setSelectedStore(store.name)}
+                      className="inline-flex items-center gap-2 text-pepsi-blue font-black text-[10px] uppercase tracking-tighter bg-pepsi-blue/10 px-4 py-2 rounded-xl border border-pepsi-blue/20 hover:bg-pepsi-blue hover:text-white transition-all shadow-lg"
+                    >
+                      <Info size={14} /> View Deep Dive
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* MODAL */}
+      {selectedStore && modalData && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-10">
+          <div
+            className="absolute inset-0 bg-slate-950/90 backdrop-blur-md"
+            onClick={() => setSelectedStore(null)}
+          />
+          <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-[2.5rem] shadow-3xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[85vh] flex flex-col">
+            <header className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+              <div className="flex items-center gap-4">
+                <MapPin size={24} className="text-pepsi-blue" />
+                <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">
+                  Store #{selectedStore}
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedStore(null)}
+                className="p-3 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl transition-all"
+              >
+                <X size={20} />
+              </button>
+            </header>
+            <div className="p-8 overflow-y-auto space-y-4">
+              {modalData.rawLogs.map((log: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex justify-between items-center"
+                >
+                  <div className="flex items-center gap-4">
+                    <Package className="text-slate-700" size={18} />
+                    <div>
+                      <p className="text-xs font-black text-white uppercase">
+                        {log.brand} {log.pack_type}
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">
+                        {log.location}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-pepsi-blue uppercase">
+                      {log.root_cause}
+                    </p>
+                    <p className="text-[8px] font-bold text-slate-600 uppercase">
+                      {new Date(log.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
