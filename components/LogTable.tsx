@@ -17,11 +17,13 @@ import {
 } from "lucide-react";
 
 export default function LogTable() {
-  const { logs, userName } = useTracker();
+  const { logs } = useTracker();
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
 
-  const historicalStats = useMemo(() => {
+  // Automated math for Duration and Historical Trends
+  const analysisData = useMemo(() => {
     if (!selectedLog) return null;
+
     const sameProductLogs = logs.filter(
       (l) => l.product === selectedLog.product,
     );
@@ -29,13 +31,21 @@ export default function LogTable() {
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
+
     const lastDate =
       sortedLogs.length > 1
         ? new Date(sortedLogs[1].created_at).toLocaleDateString(undefined, {
             month: "short",
             day: "numeric",
           })
-        : "No Prior History";
+        : "First Occurrence";
+
+    const start = new Date(selectedLog.created_at);
+    const now = new Date();
+    const diff = Math.floor(
+      (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    const duration = diff === 0 ? "Today" : `${diff}d`;
 
     return {
       totalOccurrences: sameProductLogs.length,
@@ -43,14 +53,14 @@ export default function LogTable() {
         sameProductLogs.reduce((acc, curr) => acc + curr.days_oos, 0) /
         sameProductLogs.length
       ).toFixed(1),
-      lastOOSDate: lastDate,
+      lastSeen: lastDate,
+      duration,
     };
   }, [selectedLog, logs]);
 
   if (logs.length === 0)
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center bg-slate-900 rounded-[2rem] border border-slate-800 border-dashed">
-        <Package className="text-slate-800 mb-4" size={40} />
+      <div className="p-12 text-center bg-slate-900 rounded-[2.5rem] border border-slate-800 border-dashed">
         <p className="text-slate-500 font-black uppercase tracking-widest text-[10px]">
           Awaiting Field Data
         </p>
@@ -58,15 +68,13 @@ export default function LogTable() {
     );
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 overflow-hidden rounded-[2rem] border border-slate-800">
-      {/* Fixed Spacing Header */}
-      <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/30">
+    <div className="relative flex flex-col h-full bg-slate-900 overflow-hidden rounded-[2.5rem] border border-slate-800">
+      {/* Header with Adjusted Spacing */}
+      <div className="px-8 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/30">
         <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-          Historical Frequency Engine Active
+          Frequency Analysis Active
         </span>
-        <div className="flex items-center gap-3 ml-4">
-          {" "}
-          {/* Added margin and gap here */}
+        <div className="flex items-center gap-4">
           <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">
             Synced
@@ -74,6 +82,7 @@ export default function LogTable() {
         </div>
       </div>
 
+      {/* Table Body */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <table className="w-full text-left table-fixed">
           <tbody className="divide-y divide-slate-800/50">
@@ -81,38 +90,39 @@ export default function LogTable() {
               <tr
                 key={log.id}
                 onClick={() => setSelectedLog(log)}
-                className="transition-colors cursor-pointer hover:bg-white/[0.02] active:bg-pepsi-blue/10"
+                className={`transition-all cursor-pointer hover:bg-white/[0.02] active:bg-pepsi-blue/10 ${selectedLog?.id === log.id ? "bg-pepsi-blue/5" : ""}`}
               >
-                <td className="p-4 md:p-6 align-middle">
+                <td className="p-4 md:p-6">
                   <div className="flex flex-col gap-1">
-                    <p className="font-black text-white text-sm md:text-base leading-tight truncate">
+                    <p className="font-black text-white text-sm md:text-base truncate">
                       {log.product}
                     </p>
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="flex items-center gap-1 text-slate-500 text-[9px] font-black uppercase whitespace-nowrap">
-                        <MapPin size={10} className="text-pepsi-red shrink-0" />{" "}
-                        {log.store}
-                      </span>
+                    <div className="flex items-center gap-2 text-slate-500 text-[9px] font-black uppercase overflow-hidden">
+                      <MapPin size={10} className="text-pepsi-red shrink-0" />
+                      <span className="truncate">{log.store}</span>
                       <span className="text-slate-700">•</span>
-                      <span className="text-slate-500 text-[9px] font-black uppercase truncate">
+                      <span className="truncate text-pepsi-blue">
                         {log.location}
                       </span>
                     </div>
                   </div>
                 </td>
-                <td className="p-4 md:p-6 text-center align-middle w-24">
+                <td className="p-4 w-20 md:w-28 text-center">
                   <span
-                    className={`inline-flex items-center justify-center h-6 px-3 rounded-lg text-[9px] font-black border ${
+                    className={`px-2 py-1 rounded-lg text-[9px] font-black border uppercase ${
                       log.priority === "Critical"
-                        ? "bg-pepsi-red text-white border-pepsi-red shadow-lg shadow-red-500/10"
+                        ? "bg-pepsi-red text-white border-pepsi-red"
                         : "bg-slate-800 text-slate-400 border-slate-700"
                     }`}
                   >
-                    {log.priority.toUpperCase()}
+                    {log.priority}
                   </span>
                 </td>
-                <td className="p-4 md:p-6 text-center align-middle w-12">
-                  <ChevronRight size={18} className="mx-auto text-slate-700" />
+                <td className="p-4 w-10 text-center">
+                  <ChevronRight
+                    size={18}
+                    className={`text-slate-700 transition-transform ${selectedLog?.id === log.id ? "rotate-90 text-pepsi-blue" : ""}`}
+                  />
                 </td>
               </tr>
             ))}
@@ -120,23 +130,38 @@ export default function LogTable() {
         </table>
       </div>
 
-      {/* Full Detail Modal */}
+      {/* Responsive Detail View (Modal on Mobile / Side Panel on Desktop) */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-slate-900 rounded-t-[2.5rem] sm:rounded-[2.5rem] border-x border-t sm:border border-slate-800 shadow-2xl p-6 sm:p-8 transform animate-in slide-in-from-bottom duration-300">
-            <div className="flex items-center justify-between mb-6">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                Item Intelligence
+        <>
+          {/* Backdrop for Mobile Only */}
+          <div
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in"
+            onClick={() => setSelectedLog(null)}
+          />
+
+          <div
+            className={`
+            fixed z-50 bg-slate-900 border-slate-800 shadow-2xl transition-all duration-300 transform
+            /* Mobile View: Bottom Sheet Modal */
+            inset-x-0 bottom-0 rounded-t-[2.5rem] border-t max-h-[85vh] p-6
+            /* Tablet/Desktop View: Side Panel Menu */
+            lg:inset-y-0 lg:right-0 lg:left-auto lg:w-96 lg:rounded-none lg:border-l lg:max-h-screen lg:p-8
+            animate-in slide-in-from-bottom lg:slide-in-from-right
+          `}
+          >
+            <div className="flex items-center justify-between mb-8">
+              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                Inventory Analysis
               </h4>
               <button
                 onClick={() => setSelectedLog(null)}
-                className="p-2 bg-slate-800 rounded-xl text-slate-400 cursor-pointer"
+                className="p-2 bg-slate-800 rounded-xl text-slate-400 cursor-pointer hover:text-white"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
               <header className="border-b border-slate-800 pb-6">
                 <h2 className="text-2xl font-black text-white leading-tight uppercase mb-2">
                   {selectedLog.product}
@@ -155,19 +180,19 @@ export default function LogTable() {
                 <div className="bg-slate-950 p-5 rounded-3xl border border-slate-800">
                   <Calendar size={18} className="text-slate-600 mb-2" />
                   <p className="text-2xl font-black text-white">
-                    {historicalStats?.totalOccurrences}
+                    {analysisData?.totalOccurrences}
                   </p>
                   <p className="text-[9px] font-black text-slate-500 uppercase">
                     Total Logs
                   </p>
                 </div>
                 <div className="bg-slate-950 p-5 rounded-3xl border border-slate-800">
-                  <TrendingUp size={18} className="text-emerald-500 mb-2" />
+                  <Clock size={18} className="text-emerald-500 mb-2" />
                   <p className="text-2xl font-black text-white">
-                    {historicalStats?.avgDays}
+                    {analysisData?.duration}
                   </p>
                   <p className="text-[9px] font-black text-slate-500 uppercase">
-                    Avg Days OOS
+                    Current Duration
                   </p>
                 </div>
               </div>
@@ -176,7 +201,7 @@ export default function LogTable() {
                 <div className="flex items-center gap-2 mb-2 text-emerald-500">
                   <CheckCircle2 size={16} />
                   <p className="text-[10px] font-black uppercase">
-                    Prevention Plan
+                    Mitigation Plan
                   </p>
                 </div>
                 <p className="text-xs text-slate-300 font-medium leading-relaxed italic">
@@ -191,7 +216,7 @@ export default function LogTable() {
                   <AlertCircle size={18} className="text-pepsi-red" />
                   <div>
                     <p className="text-[9px] font-black text-slate-500 uppercase">
-                      Root Cause
+                      Verified Cause
                     </p>
                     <p className="text-sm font-black text-white uppercase">
                       {selectedLog.root_cause || "Unknown"}
@@ -201,7 +226,7 @@ export default function LogTable() {
                 {selectedLog.notes && (
                   <div className="pt-4 border-t border-slate-800">
                     <p className="text-[9px] font-black text-slate-500 uppercase mb-2">
-                      Field Notes
+                      Field Observations
                     </p>
                     <p className="text-xs text-slate-400 italic">
                       "{selectedLog.notes}"
@@ -211,16 +236,16 @@ export default function LogTable() {
               </div>
             </div>
 
-            <div className="pt-6 pb-8 sm:pb-0">
+            <div className="pt-6 sm:pb-0 pb-10">
               <button
                 onClick={() => setSelectedLog(null)}
                 className="w-full py-5 bg-pepsi-blue text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-blue-900/20 cursor-pointer"
               >
-                Close Intelligence
+                Return to Dashboard
               </button>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
