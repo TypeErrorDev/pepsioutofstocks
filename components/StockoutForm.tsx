@@ -13,11 +13,12 @@ import {
 export default function StockoutForm() {
   const { addLog } = useTracker();
   const [loading, setLoading] = useState(false);
+
+  // Cleaned State: Category removed since it's a constant for this route
   const [formData, setFormData] = useState({
     product: "",
     store: "",
     location: "Home Shelf",
-    category: "Salty",
     root_cause: "Unknown",
     notes: "",
   });
@@ -25,9 +26,22 @@ export default function StockoutForm() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // The context will now handle the date logic automatically
-    await addLog(formData);
-    setFormData({ ...formData, product: "", notes: "", root_cause: "Unknown" });
+
+    // Hardcode 'Beverage' here so the database stays standardized
+    // without requiring user input.
+    await addLog({
+      ...formData,
+      category: "Beverage",
+    });
+
+    // Smart Reset: Clear product-specific info, but RETAIN Store ID for speed
+    setFormData((prev) => ({
+      ...prev,
+      product: "",
+      root_cause: "Unknown",
+      notes: "",
+    }));
+
     setLoading(false);
   };
 
@@ -36,8 +50,9 @@ export default function StockoutForm() {
     "Unknown",
     "Warehouse OOS",
     "Ordering Error",
-    "Delivery Miss",
+    "In Backstock",
     "High Demand",
+    "On Sale/Promotion",
   ];
 
   const inputStyle =
@@ -55,6 +70,7 @@ export default function StockoutForm() {
       </div>
 
       <div className="space-y-4 flex-1">
+        {/* Product Details */}
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
             Product Details
@@ -66,7 +82,7 @@ export default function StockoutForm() {
             />
             <input
               className={`${inputStyle} pl-12`}
-              placeholder="Enter product name..."
+              placeholder="e.g. Pepsi 12pk, Starry 20oz..."
               value={formData.product}
               onChange={(e) =>
                 setFormData({ ...formData, product: e.target.value })
@@ -76,6 +92,7 @@ export default function StockoutForm() {
           </div>
         </div>
 
+        {/* Store ID */}
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
             Store Number
@@ -97,6 +114,7 @@ export default function StockoutForm() {
           </div>
         </div>
 
+        {/* Merchandising Location */}
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
             Merchandising Location
@@ -110,7 +128,7 @@ export default function StockoutForm() {
                 className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
                   formData.location === loc
                     ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-blue-900/20"
-                    : "bg-slate-800 border-slate-700 text-slate-500"
+                    : "bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-500"
                 }`}
               >
                 {loc}
@@ -119,6 +137,7 @@ export default function StockoutForm() {
           </div>
         </div>
 
+        {/* Verified Cause */}
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
             Verified Cause
@@ -144,13 +163,14 @@ export default function StockoutForm() {
           </div>
         </div>
 
+        {/* Field Observations */}
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
             Field Observations
           </label>
           <textarea
             className={`${inputStyle} h-20 resize-none`}
-            placeholder="Describe constraints..."
+            placeholder="Describe constraints or delivery gaps..."
             value={formData.notes}
             onChange={(e) =>
               setFormData({ ...formData, notes: e.target.value })
@@ -161,9 +181,12 @@ export default function StockoutForm() {
 
       <button
         disabled={loading}
-        className="w-full bg-pepsi-blue text-white font-black py-5 rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer"
+        className="w-full bg-pepsi-blue text-white font-black py-5 rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer group"
       >
-        <Send size={20} />
+        <Send
+          size={20}
+          className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"
+        />
         {loading ? "RECORDING..." : "SUBMIT ANALYSIS"}
       </button>
     </form>
