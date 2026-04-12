@@ -52,7 +52,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     };
-
     setData();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
@@ -115,16 +114,11 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      // Explicitly clear state to trigger AuthGate immediately
-      setUser(null);
-      setProfile(null);
-      setLogs([]);
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setLogs([]);
+    window.location.href = "/";
   };
 
   const addLog = async (logData: any) => {
