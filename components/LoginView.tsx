@@ -1,154 +1,140 @@
 "use client";
 import React, { useState } from "react";
 import { useTracker } from "@/context/TrackerContext";
-import {
-  LogIn,
-  Key,
-  Mail,
-  ShieldCheck,
-  UserPlus,
-  BadgeCheck,
-  Fingerprint,
-} from "lucide-react";
+import { Lock, Mail, User, ShieldCheck, Sun, Moon } from "lucide-react";
+import { useEffect } from "react";
 
-type UserRole = "merchandiser" | "sales_rep" | "team_lead";
+// Local toggle for the login screen
+function LoginThemeToggle() {
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+  return (
+    <button
+      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      className="absolute top-6 right-6 p-2 rounded-xl bg-app-card border border-app-border text-app-muted hover:text-pepsi-blue transition-all"
+    >
+      {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
+  );
+}
 
 export default function LoginView() {
   const { signIn, signUp } = useTracker();
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
 
+  // Form State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [gpid, setGpid] = useState("");
-  const [role, setRole] = useState<UserRole>("merchandiser");
+  const [role, setRole] = useState<any>("merchandiser");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setLoading(true);
     try {
-      if (isRegistering) {
-        await signUp(email, password, fullName, gpid, role);
-        alert("Success! Account created.");
-        setIsRegistering(false);
-      } else {
+      if (isLogin) {
         await signIn(email, password);
+      } else {
+        await signUp(email, password, fullName, gpid, role);
+        setIsLogin(true);
       }
     } catch (err: any) {
-      alert("System Error: " + err.message);
+      alert(err.message || "Authentication failed");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-        <div className="relative z-10">
-          <header className="mb-8 text-center">
-            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">
-              {isRegistering ? "System" : "Operational"}{" "}
-              <span className="text-pepsi-blue">
-                {isRegistering ? "Registration" : "Portal"}
-              </span>
-            </h2>
-          </header>
+    <div className="min-h-screen bg-app-bg flex items-center justify-center p-4 transition-colors duration-300">
+      <LoginThemeToggle />
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center space-y-3">
+          <div className="inline-flex p-4 bg-pepsi-blue/10 rounded-3xl border border-pepsi-blue/20 mb-2">
+            <ShieldCheck className="text-pepsi-blue" size={32} />
+          </div>
+          <h1 className="text-4xl font-black italic uppercase text-app-text tracking-tighter">
+            Field<span className="text-pepsi-blue">Portal</span>
+          </h1>
+          <p className="text-[10px] font-black uppercase text-app-muted tracking-[0.3em]">
+            Inventory Intelligence System
+          </p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {isRegistering && (
+        <div className="bg-app-card border border-app-border p-8 rounded-[2.5rem] shadow-2xl transition-colors">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
               <>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm font-bold text-white outline-none focus:border-pepsi-blue"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest">
-                    GPID (8 Digits Max)
-                  </label>
+                  <label className="text-[9px] font-black text-app-muted uppercase ml-1">Full Name</label>
                   <div className="relative">
-                    <Fingerprint
-                      className="absolute left-4 top-4 text-slate-600"
-                      size={18}
-                    />
+                    <User className="absolute left-4 top-3.5 text-app-muted" size={16} />
                     <input
-                      type="text"
-                      placeholder="8-Digit ID"
-                      maxLength={8} // UI constraint
-                      className="w-full bg-slate-950 border border-slate-800 p-4 pl-12 rounded-2xl text-sm font-bold text-white outline-none focus:border-pepsi-blue"
-                      value={gpid}
-                      onChange={(e) => {
-                        // Numeric filter: only allow numbers
-                        const val = e.target.value.replace(/\D/g, "");
-                        setGpid(val);
-                      }}
                       required
+                      className="w-full bg-app-bg/50 text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
                     />
                   </div>
                 </div>
-
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest">
-                    Role
-                  </label>
-                  <select
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm font-bold text-white outline-none focus:border-pepsi-blue"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as UserRole)}
-                  >
-                    <option value="merchandiser">Merchandiser</option>
-                    <option value="sales_rep">Sales Rep</option>
-                    <option value="team_lead">Team Lead</option>
-                  </select>
+                  <label className="text-[9px] font-black text-app-muted uppercase ml-1">GPID (8 Digits)</label>
+                  <input
+                    required
+                    maxLength={8}
+                    className="w-full bg-app-bg/50 text-app-text p-3.5 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
+                    value={gpid}
+                    onChange={(e) => setGpid(e.target.value)}
+                  />
                 </div>
               </>
             )}
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest">
-                Email
-              </label>
-              <input
-                type="email"
-                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm font-bold text-white outline-none focus:border-pepsi-blue"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <label className="text-[9px] font-black text-app-muted uppercase ml-1">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-3.5 text-app-muted" size={16} />
+                <input
+                  required
+                  type="email"
+                  className="w-full bg-app-bg/50 text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest">
-                Password
-              </label>
-              <input
-                type="password"
-                className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm font-bold text-white outline-none focus:border-pepsi-blue"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <label className="text-[9px] font-black text-app-muted uppercase ml-1">Secure Password</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-3.5 text-app-muted" size={16} />
+                <input
+                  required
+                  type="password"
+                  className="w-full bg-app-bg/50 text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
             </div>
 
-            <button className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl hover:brightness-110 transition-all">
-              {isRegistering ? "CREATE ACCOUNT" : "AUTHENTICATE"}
+            <button
+              disabled={loading}
+              className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            >
+              {loading ? "AUTHENTICATING..." : isLogin ? "ACCESS SYSTEM" : "CREATE ACCOUNT"}
             </button>
           </form>
 
           <button
-            onClick={() => setIsRegistering(!isRegistering)}
-            className="w-full mt-4 text-[10px] font-black text-pepsi-blue uppercase tracking-widest hover:underline"
+            onClick={() => setIsLogin(!isLogin)}
+            className="w-full mt-6 text-[10px] font-black text-app-muted uppercase tracking-widest hover:text-app-text transition-colors"
           >
-            {isRegistering ? "Back to Login" : "Register Personnel"}
+            {isLogin ? "Request Access Privileges" : "Return to Secure Login"}
           </button>
         </div>
       </div>

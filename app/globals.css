@@ -4,16 +4,55 @@
   --color-pepsi-blue: #004c97;
   --color-pepsi-red: #e31837;
   --radius-3xl: 2.5rem;
+
+  /* Semantic Theme Variables */
+  --color-app-bg: var(--bg-value);
+  --color-app-card: var(--card-value);
+  --color-app-border: var(--border-value);
+  --color-app-text: var(--text-value);
+  --color-app-muted: var(--muted-value);
 }
 
 @layer base {
   :root {
     color-scheme: dark;
+    /* Dark Mode (Default) */
+    --bg-value: #020617;
+    /* slate-950 */
+    --card-value: #0f172a;
+    /* slate-900 */
+    --border-value: #1e293b;
+    /* slate-800 */
+    --text-value: #f8fafc;
+    /* slate-50 */
+    --muted-value: #94a3b8;
+    /* slate-400 */
   }
+
+  [data-theme='light'] {
+    color-scheme: light;
+    /* Light Mode */
+    --bg-value: #f8fafc;
+    /* slate-50 */
+    --card-value: #ffffff;
+    /* white */
+    --border-value: #e2e8f0;
+    /* slate-200 */
+    --text-value: #0f172a;
+    /* slate-900 */
+    --muted-value: #64748b;
+    /* slate-500 */
+  }
+
   body {
-    @apply bg-slate-950 text-slate-50 antialiased selection:bg-pepsi-blue;
+    background-color: var(--color-app-bg);
+    color: var(--color-app-text);
+    @apply antialiased selection:bg-pepsi-blue;
   }
+
   * {
-    @apply border-slate-800 transition-colors duration-200;
+    /* This ensures all borders in the app respond to the theme */
+    border-color: var(--color-app-border);
+    @apply transition-colors duration-200;
   }
 }
