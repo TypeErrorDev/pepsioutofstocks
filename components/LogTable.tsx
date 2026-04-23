@@ -7,9 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  ShoppingCart,
-  RefreshCw,
-  AlertCircle,
   Clock,
 } from "lucide-react";
 
@@ -35,12 +32,17 @@ export default function LogTable() {
   const modalData = useMemo(() => {
     if (!selectedStore) return null;
     const storeLogs = logs.filter((l) => l.store === selectedStore);
+
+    // Robust check for root cause to avoid "0" counts due to case sensitivity
     return {
       name: selectedStore,
-      stockouts: storeLogs.filter((l) => l.root_cause !== "In Backstock")
-        .length,
-      serviceGaps: storeLogs.filter((l) => l.root_cause === "In Backstock")
-        .length,
+      total: storeLogs.length,
+      stockouts: storeLogs.filter((l) =>
+        l.root_cause?.toLowerCase().trim() !== "in backstock"
+      ).length,
+      serviceGaps: storeLogs.filter((l) =>
+        l.root_cause?.toLowerCase().trim() === "in backstock"
+      ).length,
       rawLogs: storeLogs,
     };
   }, [selectedStore, logs]);
@@ -84,7 +86,7 @@ export default function LogTable() {
       </div>
 
       {/* MOBILE VIEW: Stacked Cards (No horizontal scroll) */}
-      <div className="block md:hidden divide-y divide-slate-800/50">
+      <div className="block md:hidden divide-y divide-slate-800/50 overflow-y-auto">
         {currentLogs.map((log) => (
           <div
             key={log.id}
@@ -101,11 +103,10 @@ export default function LogTable() {
                 </span>
               </div>
               <span
-                className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border shrink-0 ${
-                  log.root_cause === "In Backstock"
+                className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border shrink-0 ${log.root_cause?.toLowerCase().includes("backstock")
                     ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                     : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
-                }`}
+                  }`}
               >
                 {log.root_cause}
               </span>
@@ -119,11 +120,10 @@ export default function LogTable() {
                     Store #{log.store}
                   </span>
                 </div>
-                {/* User restoration for mobile */}
                 <div className="flex items-center gap-2">
                   <UserIcon size={10} className="text-slate-500" />
                   <span className="text-[10px] font-bold text-slate-500 uppercase">
-                    {log.user_name || "Unknown"}
+                    {log.user_name || "Field User"}
                   </span>
                 </div>
               </div>
@@ -185,7 +185,6 @@ export default function LogTable() {
                     </span>
                   </div>
                 </td>
-                {/* User column restored */}
                 <td className="p-4 text-center">
                   <div className="inline-flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase bg-slate-950 px-2 py-1 rounded-md border border-slate-800">
                     <UserIcon size={10} className="text-pepsi-blue" />
@@ -194,11 +193,10 @@ export default function LogTable() {
                 </td>
                 <td className="p-4 text-right">
                   <span
-                    className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${
-                      log.root_cause === "In Backstock"
+                    className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${log.root_cause?.toLowerCase().includes("backstock")
                         ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
                         : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
-                    }`}
+                      }`}
                   >
                     {log.root_cause}
                   </span>
@@ -209,7 +207,7 @@ export default function LogTable() {
         </table>
       </div>
 
-      {/* Modal section remains the same as previous stable version */}
+      {/* MODAL SECTION */}
       {selectedStore && modalData && (
         <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4">
           <div
@@ -219,7 +217,7 @@ export default function LogTable() {
           <div className="relative w-full max-w-2xl bg-slate-900 border-t md:border border-slate-800 rounded-t-[2rem] md:rounded-[2rem] overflow-hidden flex flex-col max-h-[90vh]">
             <header className="p-6 border-b border-slate-800 flex justify-between items-center">
               <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">
-                #{selectedStore} History
+                #{selectedStore} Summary
               </h2>
               <button
                 onClick={() => setSelectedStore(null)}
@@ -232,7 +230,7 @@ export default function LogTable() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
                   <p className="text-[8px] font-black text-pepsi-blue uppercase mb-1 tracking-widest">
-                    OOS Events
+                    Verified OOS Events
                   </p>
                   <p className="text-xl font-black text-white italic">
                     {modalData.stockouts}
@@ -240,7 +238,7 @@ export default function LogTable() {
                 </div>
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
                   <p className="text-[8px] font-black text-amber-500 uppercase mb-1 tracking-widest">
-                    Service Gaps
+                    Internal Service Gaps
                   </p>
                   <p className="text-xl font-black text-white italic">
                     {modalData.serviceGaps}
@@ -249,7 +247,7 @@ export default function LogTable() {
               </div>
               <div className="space-y-2">
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  Verified Activity
+                  Recent Activity
                 </p>
                 {modalData.rawLogs.slice(0, 5).map((log: any, i: number) => (
                   <div
@@ -264,7 +262,8 @@ export default function LogTable() {
                         {log.location}
                       </span>
                     </div>
-                    <span className="text-[8px] font-black text-pepsi-blue uppercase">
+                    <span className={`text-[8px] font-black uppercase ${log.root_cause?.toLowerCase().includes("backstock") ? "text-emerald-500" : "text-pepsi-red"
+                      }`}>
                       {log.root_cause}
                     </span>
                   </div>

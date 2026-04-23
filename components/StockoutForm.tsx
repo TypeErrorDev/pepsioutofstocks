@@ -127,11 +127,10 @@ export default function StockoutForm() {
                 key={pType}
                 type="button"
                 onClick={() => setType(pType)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
-                  type === pType
-                    ? "bg-pepsi-blue border-pepsi-blue text-white shadow-[0_0_15px_rgba(0,94,184,0.3)]"
-                    : "bg-slate-800/20 border-slate-700/50 text-slate-500 hover:border-slate-400"
-                }`}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${type === pType
+                  ? "bg-pepsi-blue border-pepsi-blue text-white shadow-[0_0_15px_rgba(0,94,184,0.3)]"
+                  : "bg-slate-800/20 border-slate-700/50 text-slate-500 hover:border-slate-400"
+                  }`}
               >
                 {pType}
               </button>
@@ -150,11 +149,10 @@ export default function StockoutForm() {
                 key={loc}
                 type="button"
                 onClick={() => setLocation(loc)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
-                  location === loc
-                    ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.3)]"
-                    : "bg-slate-800/20 border-slate-700/50 text-slate-500 hover:border-slate-400"
-                }`}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${location === loc
+                  ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.3)]"
+                  : "bg-slate-800/20 border-slate-700/50 text-slate-500 hover:border-slate-400"
+                  }`}
               >
                 {loc}
               </button>
@@ -208,10 +206,10 @@ export default function StockoutForm() {
               onChange={(e) => setCause(e.target.value)}
             >
               <option value="In Backstock">In Backstock</option>
+              <option value="Promotion/Sale">Promotion/Sale</option>
+              <option value="Order Miss">Order Miss</option>
+              <option value="Store Denied Item From Delivery">Store Denied Item From Delivery</option>
               <option value="Warehouse OOS">Warehouse OOS</option>
-              <option value="Ordering Error">Ordering Error</option>
-              <option value="Delivery Delayed">Delivery Delayed</option>
-              <option value="Shelf Capacity Issue">Shelf Capacity Issue</option>
             </select>
             <ChevronRight
               className="absolute right-4 top-4 text-slate-600 pointer-events-none rotate-90"

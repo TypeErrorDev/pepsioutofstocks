@@ -46,6 +46,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         .select("*")
         .eq("id", userId)
         .single();
+      if (error) throw error;
       if (data) setProfile(data);
       return data;
     } catch (e) {
@@ -56,10 +57,11 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   const fetchLogs = async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("logs")
         .select("*")
         .order("created_at", { ascending: false });
+      if (error) throw error;
       if (data) setLogs(data);
     } catch (e) {
       console.error("Logs fetch error", e);
