@@ -25,7 +25,7 @@ const LOCATIONS = [
 const ROOT_CAUSES = [
   "Backstock",
   "Warehouse Error",
-  "Delivery Refusal",
+  "Store Delivery Refusal",
   "Forecast Gap",
   "Velocity Surge"
 ];
@@ -82,7 +82,7 @@ export default function StockoutForm() {
     <form onSubmit={handleSubmit} className="space-y-6 relative">
       {/* Success Overlay - Updated to semantic theme */}
       {showSuccess && (
-        <div className="absolute inset-0 bg-app-card/95 backdrop-blur-md z-50 rounded-[2.5rem] flex flex-col items-center justify-center animate-in zoom-in duration-300">
+        <div className="absolute inset-0 bg-app-card/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center animate-in zoom-in duration-300">
           <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 border border-emerald-500/30">
             <CheckCircle2 size={32} className="text-emerald-500" />
           </div>
@@ -122,8 +122,8 @@ export default function StockoutForm() {
                 type="button"
                 onClick={() => setType(pType)}
                 className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${type === pType
-                    ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-pepsi-blue/20"
-                    : "bg-app-bg/20 border-app-border text-app-muted hover:border-app-text/30"
+                  ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-pepsi-blue/20"
+                  : "bg-app-bg/20 border-app-border text-app-muted hover:border-app-text/30"
                   }`}
               >
                 {pType}
@@ -144,8 +144,8 @@ export default function StockoutForm() {
                 type="button"
                 onClick={() => setLocation(loc)}
                 className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${location === loc
-                    ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                    : "bg-app-bg/20 border-app-border text-app-muted hover:border-app-text/30"
+                  ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+                  : "bg-app-bg/20 border-app-border text-app-muted hover:border-app-text/30"
                   }`}
               >
                 {loc}
@@ -207,7 +207,7 @@ export default function StockoutForm() {
           <div className="relative">
             <MessageSquare className="absolute left-4 top-3.5 text-app-muted" size={16} />
             <textarea
-              className="w-full bg-app-bg/40 text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold min-h-[80px] transition-all"
+              className="w-full bg-app-bg/40 text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold min-h-20 transition-all"
               placeholder="Specific notes (e.g. promo velocity surge)..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

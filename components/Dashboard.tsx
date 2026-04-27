@@ -17,7 +17,7 @@ import StockoutForm from "./StockoutForm";
 
 /**
  * THEME TOGGLE COMPONENT
- * Added relative positioning and z-index to ensure visibility
+ * Added explicit z-index and flex properties to ensure visibility
  */
 function ThemeToggle() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -29,7 +29,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="relative z-50 p-2.5 rounded-xl bg-app-card border border-app-border text-app-muted hover:text-pepsi-blue transition-all active:scale-95 shadow-lg flex items-center justify-center"
+      className="relative z-50 shrink-0 p-2.5 rounded-xl bg-app-card border border-app-border text-app-muted hover:text-pepsi-blue hover:border-pepsi-blue/50 transition-all active:scale-95 shadow-lg"
       aria-label="Toggle Theme"
     >
       {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -43,9 +43,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-app-bg transition-colors duration-300 p-4 md:p-8 lg:p-12">
-      <div className="max-w-[1600px] mx-auto space-y-6 md:space-y-10">
+      <div className="max-w-400 mx-auto space-y-6 md:space-y-10">
 
-        {/* HEADER: Explicitly structured to force visibility on the right side */}
+        {/* --- HEADER SECTION --- */}
         <header className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-1 self-start">
             <div className="flex items-center gap-2 text-pepsi-blue">
@@ -60,19 +60,18 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-4 shrink-0">
-            {/* THEME TOGGLE: Forced inline with the other header elements */}
             <ThemeToggle />
 
             <Link
               href="/insights"
               className="hidden md:flex flex-col items-center justify-center px-6 py-2 bg-app-card border border-app-border rounded-2xl hover:border-pepsi-blue transition-all"
             >
-              <span className="text-[9px] font-black uppercase text-pepsi-blue tracking-widest">Analytics Dashboard</span>
+              <span className="text-[9px] font-black uppercase text-pepsi-blue tracking-widest leading-tight">Analytics Dashboard</span>
               <span className="text-[8px] font-bold uppercase text-app-muted">Admin View</span>
             </Link>
 
-            {/* IDENTITY BLOCK: Verified against your screenshot */}
-            <div className="flex items-center gap-3 bg-app-card border border-app-border p-1.5 pr-4 rounded-full shadow-xl">
+            {/* IDENTITY BLOCK (Right side of header) */}
+            <div className="flex items-center gap-3 bg-app-card border border-app-border p-1.5 pr-4 rounded-full shadow-lg">
               <div className="flex flex-col items-end pl-4">
                 <span className="text-[10px] font-black uppercase text-app-text tracking-tight leading-none">
                   {displayName}
@@ -83,7 +82,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={signOut}
-                className="w-10 h-10 bg-app-bg border border-app-border rounded-full flex items-center justify-center text-app-muted hover:text-pepsi-red transition-all"
+                className="w-10 h-10 bg-app-bg border border-app-border rounded-full flex items-center justify-center text-app-muted hover:text-pepsi-red transition-all shadow-inner"
               >
                 <LogOut size={16} />
               </button>
@@ -91,7 +90,7 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* STATS OVERVIEW */}
+        {/* --- STATS OVERVIEW --- */}
         <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-4 pb-4 md:pb-0 custom-scrollbar scroll-smooth">
           <StatCard
             title="Total Field Logs"
@@ -113,7 +112,7 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* MAIN INTERFACE */}
+        {/* --- MAIN INTERFACE --- */}
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start pb-10">
           <section className="lg:col-span-4 lg:sticky lg:top-6 order-2 lg:order-1">
             <div className="bg-app-card border border-app-border p-6 md:p-10 rounded-3xl shadow-2xl relative overflow-hidden transition-colors">
@@ -129,7 +128,7 @@ export default function Dashboard() {
           </section>
         </main>
 
-        {/* FOOTER */}
+        {/* --- FOOTER --- */}
         <footer className="pt-6 border-t border-app-border flex flex-col md:flex-row justify-between gap-4">
           <div className="flex items-center gap-4">
             <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
@@ -152,9 +151,6 @@ export default function Dashboard() {
   );
 }
 
-/**
- * REUSABLE STAT CARD
- */
 function StatCard({ title, value, icon, color }: any) {
   return (
     <div className="bg-app-card border border-app-border p-6 rounded-2xl shadow-lg min-w-[200px] md:min-w-0 flex-1 transition-all hover:border-app-text/10">

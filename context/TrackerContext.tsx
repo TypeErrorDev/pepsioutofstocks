@@ -70,39 +70,37 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      setLoading(true);
       try {
+        // First, restore session from sessionStorage
         const {
           data: { session },
         } = await supabase.auth.getSession();
 
         if (session?.user) {
           setUser(session.user);
-          // Wait for both profile and logs to ensure the dashboard has data
           await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
         }
       } catch (error) {
         console.error("Initialization error:", error);
       } finally {
-        // Guaranteed to run, preventing the "hang"
+        // Set loading to false only after session restoration is complete
         setLoading(false);
       }
     };
 
     initializeAuth();
 
+    // Set up listener for future auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
-          await fetchLogs();
+          await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
         } else if (event === "SIGNED_OUT") {
           setUser(null);
           setProfile(null);
           setLogs([]);
         }
-        setLoading(false);
       },
     );
 

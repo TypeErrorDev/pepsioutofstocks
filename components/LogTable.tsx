@@ -16,7 +16,7 @@ export default function LogTable() {
   const { logs, profile, loading } = useTracker();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
-  const itemsPerPage = 6;
+  const itemsPerPage = 10;
 
   const isManagement = profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
   const filteredLogs = isManagement
@@ -34,7 +34,6 @@ export default function LogTable() {
     return {
       name: selectedStore,
       total: storeLogs.length,
-      // Professional categories: Backstock is a service gap, others are stockouts
       stockouts: storeLogs.filter((l) => l.root_cause !== "Backstock").length,
       serviceGaps: storeLogs.filter((l) => l.root_cause === "Backstock").length,
       rawLogs: storeLogs,
@@ -68,7 +67,7 @@ export default function LogTable() {
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="text-[10px] font-black text-app-muted px-2 min-w-[40px] text-center">
+          <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center">
             {currentPage}/{totalPages || 1}
           </span>
           <button
@@ -100,8 +99,8 @@ export default function LogTable() {
                   </span>
                 </div>
                 <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border shrink-0 ${log.root_cause === "Backstock"
-                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                    : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
+                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                  : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
                   }`}>
                   {log.root_cause}
                 </span>
@@ -139,9 +138,9 @@ export default function LogTable() {
             <thead>
               <tr className="bg-app-bg/30 border-b border-app-border">
                 <th className="p-4 text-[9px] font-black text-app-muted uppercase tracking-widest">SKU Details</th>
-                <th className="w-[140px] p-4 text-[9px] font-black text-app-muted uppercase tracking-widest">Store</th>
-                <th className="w-[160px] p-4 text-[9px] font-black text-app-muted uppercase tracking-widest text-center">Field Contact</th>
-                <th className="w-[150px] p-4 text-right text-[9px] font-black text-app-muted uppercase tracking-widest">Log Cause</th>
+                <th className="w-35 p-4 text-[9px] font-black text-app-muted uppercase tracking-widest">Store</th>
+                <th className="w-40 p-4 text-[9px] font-black text-app-muted uppercase tracking-widest text-center">Field Contact</th>
+                <th className="w-37.5 p-4 text-right text-[9px] font-black text-app-muted uppercase tracking-widest">Log Cause</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-app-border/30">
@@ -171,8 +170,8 @@ export default function LogTable() {
                   </td>
                   <td className="p-4 text-right">
                     <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${log.root_cause === "Backstock"
-                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                        : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
+                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                      : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
                       }`}>
                       {log.root_cause}
                     </span>
@@ -186,9 +185,9 @@ export default function LogTable() {
 
       {/* STORE ANALYTICS MODAL */}
       {selectedStore && modalData && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4">
+        <div className="fixed inset-0 z-100 flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="absolute inset-0 bg-app-bg/80 backdrop-blur-sm" onClick={() => setSelectedStore(null)} />
-          <div className="relative w-full max-w-2xl bg-app-card border-t md:border border-app-border rounded-t-[2.5rem] md:rounded-[2.5rem] overflow-hidden flex flex-col max-h-[85vh] shadow-2xl animate-in slide-in-from-bottom duration-300">
+          <div className="relative w-full max-w-2xl bg-app-card border-t md:border border-app-border rounded-t-3xl md:rounded-3xl overflow-hidden flex flex-col max-h-[85vh] shadow-2xl animate-in slide-in-from-bottom duration-300">
             <header className="p-6 border-b border-app-border flex justify-between items-center bg-app-card/50">
               <div>
                 <h2 className="text-xl font-black text-app-text uppercase italic tracking-tighter">
