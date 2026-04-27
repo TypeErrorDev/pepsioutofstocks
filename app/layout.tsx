@@ -15,9 +15,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      {/* We leave the className clean so globals.css can apply 
-        background-color: var(--color-app-bg) to the body.
-      */}
       <body className="antialiased">
         <TrackerProvider>
           <AuthGate>

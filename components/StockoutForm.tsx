@@ -21,13 +21,12 @@ const LOCATIONS = [
   "Main Shelf", "Coolers", "Lobby", "Endcap", "Display", "Shippers",
 ];
 
-// Professional logistical causes to avoid placing blame
 const ROOT_CAUSES = [
   "Backstock",
   "Warehouse Error",
   "Store Delivery Refusal",
   "Forecast Gap",
-  "Velocity Surge"
+  "Promotional Surge",
 ];
 
 export default function StockoutForm() {
