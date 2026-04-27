@@ -9,7 +9,6 @@ import {
   X,
   CheckCircle2,
   ChevronRight,
-  Box,
 } from "lucide-react";
 
 const PACK_TYPES = [
@@ -79,13 +78,13 @@ export default function StockoutForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 relative">
-      {/* Success Overlay - Updated to semantic theme */}
+      {/* Success Overlay - Fixed to Hardcoded Slate */}
       {showSuccess && (
-        <div className="absolute inset-0 bg-app-card/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center animate-in zoom-in duration-300">
+        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center animate-in zoom-in duration-300">
           <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 border border-emerald-500/30">
             <CheckCircle2 size={32} className="text-emerald-500" />
           </div>
-          <span className="text-[10px] font-black text-app-text uppercase tracking-[0.4em]">
+          <span className="text-[10px] font-black text-slate-50 uppercase tracking-[0.4em]">
             Entry Synced
           </span>
         </div>
@@ -94,13 +93,13 @@ export default function StockoutForm() {
       <div className="space-y-5">
         {/* BRAND INPUT */}
         <div className="space-y-1">
-          <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Brand / SKU
           </label>
           <div className="relative">
-            <Package className="absolute left-4 top-3.5 text-app-muted" size={16} />
+            <Package className="absolute left-4 top-3.5 text-slate-500" size={16} />
             <input
-              className="w-full bg-app-bg/40 text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold placeholder:text-app-muted/50 transition-all"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold placeholder:text-slate-500/50 transition-all"
               placeholder="e.g. Starry, Pepsi, Dew"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
@@ -111,7 +110,7 @@ export default function StockoutForm() {
 
         {/* PACK TYPE SELECTOR */}
         <div className="space-y-2">
-          <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Pack Type
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -122,7 +121,7 @@ export default function StockoutForm() {
                 onClick={() => setType(pType)}
                 className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${type === pType
                   ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-pepsi-blue/20"
-                  : "bg-app-bg/20 border-app-border text-app-muted hover:border-app-text/30"
+                  : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
                   }`}
               >
                 {pType}
@@ -133,7 +132,7 @@ export default function StockoutForm() {
 
         {/* LOCATION SELECTOR */}
         <div className="space-y-2">
-          <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Store Location
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -144,7 +143,7 @@ export default function StockoutForm() {
                 onClick={() => setLocation(loc)}
                 className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${location === loc
                   ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                  : "bg-app-bg/20 border-app-border text-app-muted hover:border-app-text/30"
+                  : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
                   }`}
               >
                 {loc}
@@ -155,14 +154,14 @@ export default function StockoutForm() {
 
         {/* STORE IDENTITY INPUT */}
         <div className="space-y-1">
-          <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Store Identity
           </label>
           <div className="relative group">
-            <MapPin className="absolute left-4 top-3.5 text-app-muted group-focus-within:text-pepsi-blue transition-colors" size={14} />
+            <MapPin className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-pepsi-blue transition-colors" size={14} />
             <input
               type="text"
-              className="w-full bg-app-bg/40 text-app-text p-3.5 pl-10 pr-10 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 pr-10 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
               placeholder="e.g. Safeway #3213"
               value={store}
               onChange={(e) => setStore(e.target.value)}
@@ -172,7 +171,7 @@ export default function StockoutForm() {
               <button
                 type="button"
                 onClick={() => setStore("")}
-                className="absolute right-3 top-3 p-1 rounded-lg bg-app-border text-app-muted hover:text-app-text hover:bg-pepsi-red/20 transition-all"
+                className="absolute right-3 top-3 p-1 rounded-lg bg-slate-800 text-slate-500 hover:text-slate-50 hover:bg-red-500/20 transition-all"
               >
                 <X size={14} />
               </button>
@@ -180,33 +179,33 @@ export default function StockoutForm() {
           </div>
         </div>
 
-        {/* ROOT CAUSE - Professional Logistical Terms */}
+        {/* ROOT CAUSE */}
         <div className="space-y-1">
-          <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Logistical Cause
           </label>
           <div className="relative">
-            <AlertCircle className="absolute left-4 top-3.5 text-app-muted" size={16} />
+            <AlertCircle className="absolute left-4 top-3.5 text-slate-500" size={16} />
             <select
-              className="w-full bg-app-bg/40 text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer"
               value={cause}
               onChange={(e) => setCause(e.target.value)}
             >
-              {ROOT_CAUSES.map(c => <option key={c} value={c}>{c}</option>)}
+              {ROOT_CAUSES.map(c => <option key={c} value={c} className="bg-slate-950">{c}</option>)}
             </select>
-            <ChevronRight className="absolute right-4 top-4 text-app-muted pointer-events-none rotate-90" size={14} />
+            <ChevronRight className="absolute right-4 top-4 text-slate-500 pointer-events-none rotate-90" size={14} />
           </div>
         </div>
 
         {/* OBSERVATIONS */}
         <div className="space-y-1">
-          <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
+          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Field Observations
           </label>
           <div className="relative">
-            <MessageSquare className="absolute left-4 top-3.5 text-app-muted" size={16} />
+            <MessageSquare className="absolute left-4 top-3.5 text-slate-500" size={16} />
             <textarea
-              className="w-full bg-app-bg/40 text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none focus:border-pepsi-blue text-sm font-bold min-h-20 transition-all"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold min-h-20 transition-all"
               placeholder="Specific notes (e.g. promo velocity surge)..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
