@@ -84,41 +84,42 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         .from("logs")
         .select("*")
         .order("created_at", { ascending: false });
-<<<<<<< HEAD
 
       if (error) throw error;
       if (data) setLogs(data as StockoutLog[]);
-=======
-      if (error) throw error;
-      if (data) setLogs(data);
->>>>>>> 8dd64aa761e38d3f4f161fd388b63878e240c631
     } catch (e) {
       console.error("Logs fetch error", e);
     }
   }, []);
 
-  // REALTIME SUBSCRIPTION
+  // --- REALTIME SUBSCRIPTION ---
   useEffect(() => {
     if (!user) return;
+
     const channel = supabase
-      .channel("realtime_logs")
+      .channel("schema-db-changes")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "logs" },
+        {
+          event: "*",
+          schema: "public",
+          table: "logs",
+        },
         () => {
           fetchLogs();
         },
       )
       .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
     };
   }, [user, fetchLogs]);
 
+  // --- AUTH INITIALIZATION ---
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // First, restore session from sessionStorage
         const {
           data: { session },
         } = await supabase.auth.getSession();
@@ -129,16 +130,12 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Auth init error:", error);
       } finally {
-<<<<<<< HEAD
-=======
-        // Set loading to false only after session restoration is complete
->>>>>>> 8dd64aa761e38d3f4f161fd388b63878e240c631
+        // loading is set to false only after all restoration is attempted
         setLoading(false);
       }
     };
     initializeAuth();
 
-    // Set up listener for future auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {

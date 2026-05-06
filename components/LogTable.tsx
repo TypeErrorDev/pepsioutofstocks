@@ -30,14 +30,19 @@ export default function LogTable() {
     () => logs.filter((log) => !log.is_hidden),
     [logs],
   );
+
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
+
   const filteredLogs = isManagement
     ? activeLogs
     : activeLogs.filter((log) => log.user_name === profile?.full_name);
 
   const indexOfLastItem = currentPage * itemsPerPage;
-  const currentLogs = filteredLogs.slice(indexOfLastItem - itemsPerPage, indexOfLastItem);
+  const currentLogs = filteredLogs.slice(
+    indexOfLastItem - itemsPerPage,
+    indexOfLastItem,
+  );
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
 
   // PST Formatting Helper
@@ -75,6 +80,7 @@ export default function LogTable() {
 
   return (
     <div className="flex flex-col h-full bg-app-card transition-colors">
+      {/* Table Header with Pagination */}
       <div className="p-5 border-b border-app-border flex justify-between items-center bg-app-card/50">
         <div className="flex flex-col">
           <h3 className="text-xs font-black text-app-text uppercase italic tracking-widest leading-none mb-1">
@@ -84,7 +90,7 @@ export default function LogTable() {
             {filteredLogs.length} Active Records
           </span>
         </div>
-        <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
+
         <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
@@ -93,7 +99,6 @@ export default function LogTable() {
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center">
           <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center">
             {currentPage}/{totalPages || 1}
           </span>
@@ -107,6 +112,7 @@ export default function LogTable() {
         </div>
       </div>
 
+      {/* Table Content */}
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -193,7 +199,6 @@ export default function LogTable() {
               <button
                 onClick={() => setSelectedStore(null)}
                 className="p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all"
-                className="p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all"
               >
                 <X size={20} />
               </button>
@@ -246,7 +251,6 @@ export default function LogTable() {
                     </div>
                   )}
 
-                  {/* Audit Trail Section */}
                   {log.is_worked && log.updated_by && (
                     <div className="pt-2 border-t border-app-border/30 space-y-1">
                       <div className="flex items-center gap-2">

@@ -1,33 +1,31 @@
 "use client";
 import React from "react";
 import { useTracker } from "@/context/TrackerContext";
-<<<<<<< HEAD
-import { Package, AlertCircle, CheckCircle2, TrendingUp } from "lucide-react";
-import Link from "next/link";
-=======
 import {
   Package,
+  AlertCircle,
+  CheckCircle2,
+  TrendingUp,
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
-import LogTable from "./LogTable";
->>>>>>> 8dd64aa761e38d3f4f161fd388b63878e240c631
+import Link from "next/link";
 import StockoutForm from "./StockoutForm";
 import LogTable from "./LogTable";
 
 export default function Dashboard() {
   const { profile, logs } = useTracker();
-<<<<<<< HEAD
 
   // Logic: Only count logs that are NOT hidden
   const activeLogs = logs.filter((l) => !l.is_hidden);
 
   const totalLogs = activeLogs.length;
 
-  // Logic: Separate logistical issues from simple backstock gaps
+  // Logic: Separate logistical issues (Logistical Gaps) from simple backstock issues (Service Gaps)
   const logisticalGaps = activeLogs.filter(
     (l) => l.root_cause !== "Backstock",
   ).length;
+
   const serviceGaps = activeLogs.filter(
     (l) => l.root_cause === "Backstock",
   ).length;
@@ -72,104 +70,56 @@ export default function Dashboard() {
           title="Active Field Logs"
           value={totalLogs}
           icon={<Package size={20} />}
-=======
-
-  return (
-    <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12 space-y-6 md:space-y-10">
-
-      {/* --- STATS OVERVIEW --- */}
-      <div className="relative z-10 flex overflow-x-auto md:grid md:grid-cols-3 gap-4 pb-4 md:pb-0 custom-scrollbar scroll-smooth">
-        <StatCard
-          title="Total Field Logs"
-          value={logs.length}
-          icon={<Package size={18} />}
->>>>>>> 8dd64aa761e38d3f4f161fd388b63878e240c631
           color="text-pepsi-blue"
         />
         <StatCard
           title="Logistical Gaps"
-<<<<<<< HEAD
           value={logisticalGaps}
           icon={<AlertCircle size={20} />}
-=======
-          value={logs.filter((l) => l.root_cause !== "Backstock").length}
-          icon={<AlertTriangle size={18} />}
->>>>>>> 8dd64aa761e38d3f4f161fd388b63878e240c631
           color="text-pepsi-red"
         />
         <StatCard
           title="Service Gaps"
-<<<<<<< HEAD
           value={serviceGaps}
           icon={<CheckCircle2 size={20} />}
-=======
-          value={logs.filter((l) => l.root_cause === "Backstock").length}
-          icon={<CheckCircle size={18} />}
->>>>>>> 8dd64aa761e38d3f4f161fd388b63878e240c631
           color="text-emerald-500"
         />
       </div>
 
-<<<<<<< HEAD
       <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start pb-10">
         <div className="lg:col-span-4 lg:sticky lg:top-8">
-          <StockoutForm />
+          <div className="bg-app-card border border-app-border p-6 md:p-10 rounded-3xl shadow-2xl relative overflow-hidden transition-colors">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-pepsi-blue/5 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
+            <StockoutForm />
+          </div>
         </div>
         <div className="lg:col-span-8 bg-app-card border border-app-border rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[600px] flex flex-col">
           <LogTable />
         </div>
       </main>
 
-      <footer className="pt-10 border-t border-app-border/50 flex justify-between items-center">
-        <p className="text-[10px] font-black text-app-muted uppercase tracking-widest italic">
-          v2.0 // Terminal Secured
-        </p>
-=======
-      {/* --- MAIN INTERFACE --- */}
-      <main className="relative z-0 grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start pb-10">
-
-        {/* Left Section: The Stockout Form */}
-        <section className="lg:col-span-4 lg:sticky lg:top-6 order-2 lg:order-1">
-          <div className="bg-slate-900 border border-slate-800 p-6 md:p-10 rounded-3xl shadow-2xl relative overflow-hidden transition-colors">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-pepsi-blue/5 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
-            <StockoutForm />
-          </div>
-        </section>
-
-        {/* Right Section: The Live Feed Table */}
-        <section className="lg:col-span-8 order-1 lg:order-2 h-full min-h-[400px] md:min-h-[800px]">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden h-full flex flex-col relative transition-colors">
-            <LogTable />
-          </div>
-        </section>
-
-      </main>
-
-      {/* --- FOOTER: Verified Identity Data --- */}
-      <footer className="pt-6 border-t border-slate-800 flex flex-col md:flex-row justify-between gap-4">
+      <footer className="pt-10 border-t border-app-border/50 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">
+          <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
             Verified Terminal: {profile?.full_name}
           </span>
-          <span className="w-1.5 h-1.5 bg-slate-800 rounded-full" />
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">
+          <span className="w-1.5 h-1.5 bg-app-border rounded-full" />
+          <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
             GPID: {profile?.gpid}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">
+          <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
             System Ready
           </span>
         </div>
->>>>>>> 8dd64aa761e38d3f4f161fd388b63878e240c631
       </footer>
     </div>
   );
 }
 
-<<<<<<< HEAD
-// Internal StatCard Component
+// Reusable StatCard Component
 function StatCard({
   title,
   value,
@@ -188,20 +138,6 @@ function StatCard({
         {title}
       </p>
       <h3 className="text-4xl font-black text-app-text italic tracking-tighter leading-none">
-=======
-/**
- * REUSABLE STAT CARD
- * Locked to Slate palette for permanent dark theme.
- */
-function StatCard({ title, value, icon, color }: any) {
-  return (
-    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-lg min-w-[200px] md:min-w-0 flex-1 transition-all hover:border-slate-700">
-      <div className={`${color} mb-3`}>{icon}</div>
-      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">
-        {title}
-      </p>
-      <h3 className="text-3xl font-black text-slate-50 italic tracking-tighter leading-none">
->>>>>>> 8dd64aa761e38d3f4f161fd388b63878e240c631
         {value}
       </h3>
     </div>
