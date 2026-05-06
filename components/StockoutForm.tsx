@@ -6,32 +6,26 @@ import {
   MapPin,
   AlertCircle,
   MessageSquare,
-  Hash,
   X,
   CheckCircle2,
   ChevronRight,
 } from "lucide-react";
 
 const PACK_TYPES = [
-  "18 Pack",
-  "12 Pack",
-  "10 Pack",
-  "8 Pack",
-  "6 Pack",
-  "4 Pack",
-  "28oz",
-  "20oz",
-  "2L",
-  "1.25L",
-  "Singles",
+  "18 Pack", "12 Pack", "10 Pack", "8 Pack", "6 Pack",
+  "4 Pack", "28oz", "20oz", "2L", "1.25L", "Singles",
 ];
+
 const LOCATIONS = [
-  "Main Shelf",
-  "Coolers",
-  "Lobby",
-  "Endcap",
-  "Display",
-  "Shippers",
+  "Main Shelf", "Coolers", "Lobby", "Endcap", "Display", "Shippers",
+];
+
+const ROOT_CAUSES = [
+  "Backstock",
+  "Warehouse Error",
+  "Store Delivery Refusal",
+  "Forecast Gap",
+  "Promotional Surge",
 ];
 
 export default function StockoutForm() {
@@ -42,7 +36,7 @@ export default function StockoutForm() {
   const [type, setType] = useState("");
   const [store, setStore] = useState("");
   const [location, setLocation] = useState("");
-  const [cause, setCause] = useState("In Backstock");
+  const [cause, setCause] = useState("Backstock");
   const [notes, setNotes] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,19 +55,20 @@ export default function StockoutForm() {
         product: `${brand} ${type}`.trim(),
         brand,
         pack_type: type,
-        store: store, // Now supports "Safeway #3213"
+        store: store,
         location,
         root_cause: cause,
         notes,
-        gpid: profile?.gpid, // Ensuring GPID is attached to the log
+        gpid: profile?.gpid,
       });
 
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
 
-      // Reset brand and notes for next entry, keep Store # for convenience
+      // Reset specific fields for next entry
       setBrand("");
       setNotes("");
+      setCause("Backstock");
     } catch (err) {
       console.error("Log failed:", err);
     } finally {
@@ -83,13 +78,13 @@ export default function StockoutForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 relative">
-      {/* Success Overlay */}
+      {/* Success Overlay - Fixed to Hardcoded Slate */}
       {showSuccess && (
-        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-[2.5rem] flex flex-col items-center justify-center animate-in zoom-in duration-300">
+        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center animate-in zoom-in duration-300">
           <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 border border-emerald-500/30">
             <CheckCircle2 size={32} className="text-emerald-500" />
           </div>
-          <span className="text-[10px] font-black text-white uppercase tracking-[0.4em]">
+          <span className="text-[10px] font-black text-slate-50 uppercase tracking-[0.4em]">
             Entry Synced
           </span>
         </div>
@@ -102,12 +97,9 @@ export default function StockoutForm() {
             Brand / SKU
           </label>
           <div className="relative">
-            <Package
-              className="absolute left-4 top-3.5 text-slate-500"
-              size={16}
-            />
+            <Package className="absolute left-4 top-3.5 text-slate-500" size={16} />
             <input
-              className="w-full bg-slate-800/40 text-white p-3.5 pl-12 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue text-sm font-bold placeholder:text-slate-600 transition-all"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold placeholder:text-slate-500/50 transition-all"
               placeholder="e.g. Starry, Pepsi, Dew"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
@@ -127,11 +119,10 @@ export default function StockoutForm() {
                 key={pType}
                 type="button"
                 onClick={() => setType(pType)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
-                  type === pType
-                    ? "bg-pepsi-blue border-pepsi-blue text-white shadow-[0_0_15px_rgba(0,94,184,0.3)]"
-                    : "bg-slate-800/20 border-slate-700/50 text-slate-500 hover:border-slate-400"
-                }`}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${type === pType
+                  ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-pepsi-blue/20"
+                  : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
+                  }`}
               >
                 {pType}
               </button>
@@ -150,11 +141,10 @@ export default function StockoutForm() {
                 key={loc}
                 type="button"
                 onClick={() => setLocation(loc)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
-                  location === loc
-                    ? "bg-emerald-600 border-emerald-600 text-white shadow-[0_0_15px_rgba(5,150,105,0.3)]"
-                    : "bg-slate-800/20 border-slate-700/50 text-slate-500 hover:border-slate-400"
-                }`}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${location === loc
+                  ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+                  : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
+                  }`}
               >
                 {loc}
               </button>
@@ -162,19 +152,16 @@ export default function StockoutForm() {
           </div>
         </div>
 
-        {/* STORE IDENTITY INPUT (Allows Text) */}
+        {/* STORE IDENTITY INPUT */}
         <div className="space-y-1">
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Store Identity
           </label>
           <div className="relative group">
-            <MapPin
-              className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-pepsi-blue transition-colors"
-              size={14}
-            />
+            <MapPin className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-pepsi-blue transition-colors" size={14} />
             <input
               type="text"
-              className="w-full bg-slate-800/40 text-white p-3.5 pl-10 pr-10 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 pr-10 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
               placeholder="e.g. Safeway #3213"
               value={store}
               onChange={(e) => setStore(e.target.value)}
@@ -184,7 +171,7 @@ export default function StockoutForm() {
               <button
                 type="button"
                 onClick={() => setStore("")}
-                className="absolute right-3 top-3 p-1 rounded-lg bg-slate-700/50 text-slate-400 hover:text-white hover:bg-pepsi-red/20 transition-all"
+                className="absolute right-3 top-3 p-1 rounded-lg bg-slate-800 text-slate-500 hover:text-slate-50 hover:bg-red-500/20 transition-all"
               >
                 <X size={14} />
               </button>
@@ -195,28 +182,18 @@ export default function StockoutForm() {
         {/* ROOT CAUSE */}
         <div className="space-y-1">
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-            Root Cause
+            Logistical Cause
           </label>
           <div className="relative">
-            <AlertCircle
-              className="absolute left-4 top-3.5 text-slate-500"
-              size={16}
-            />
+            <AlertCircle className="absolute left-4 top-3.5 text-slate-500" size={16} />
             <select
-              className="w-full bg-slate-800/40 text-white p-3.5 pl-12 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer"
               value={cause}
               onChange={(e) => setCause(e.target.value)}
             >
-              <option value="In Backstock">In Backstock</option>
-              <option value="Warehouse OOS">Warehouse OOS</option>
-              <option value="Ordering Error">Ordering Error</option>
-              <option value="Delivery Delayed">Delivery Delayed</option>
-              <option value="Shelf Capacity Issue">Shelf Capacity Issue</option>
+              {ROOT_CAUSES.map(c => <option key={c} value={c} className="bg-slate-950">{c}</option>)}
             </select>
-            <ChevronRight
-              className="absolute right-4 top-4 text-slate-600 pointer-events-none rotate-90"
-              size={14}
-            />
+            <ChevronRight className="absolute right-4 top-4 text-slate-500 pointer-events-none rotate-90" size={14} />
           </div>
         </div>
 
@@ -226,13 +203,10 @@ export default function StockoutForm() {
             Field Observations
           </label>
           <div className="relative">
-            <MessageSquare
-              className="absolute left-4 top-3.5 text-slate-500"
-              size={16}
-            />
+            <MessageSquare className="absolute left-4 top-3.5 text-slate-500" size={16} />
             <textarea
-              className="w-full bg-slate-800/40 text-white p-3.5 pl-12 rounded-2xl border border-slate-700 outline-none focus:border-pepsi-blue text-sm font-bold min-h-[80px] transition-all"
-              placeholder="Specific notes (e.g. manager requested endcap)..."
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold min-h-20 transition-all"
+              placeholder="Specific notes (e.g. promo velocity surge)..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
@@ -251,11 +225,8 @@ export default function StockoutForm() {
           </div>
         ) : (
           <>
-            LOG STOCKOUT
-            <CheckCircle2
-              size={18}
-              className="group-hover:scale-110 transition-transform"
-            />
+            LOG FIELD ENTRY
+            <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />
           </>
         )}
       </button>

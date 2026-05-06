@@ -1,10 +1,14 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { TrackerProvider } from "@/context/TrackerContext";
 import AuthGate from "@/components/AuthGate";
 
-export const metadata = {
-  title: "PepsiCo Stockout Tracker",
-  description: "Operational Intelligence for Merchandisers",
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "FieldPortal | PepsiCo",
+  description: "Enterprise Inventory Intelligence",
 };
 
 export default function RootLayout({
@@ -14,9 +18,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased bg-slate-950">
+      <body className={inter.className}>
         <TrackerProvider>
-          <AuthGate>{children}</AuthGate>
+          <AuthGate>
+            {children}
+          </AuthGate>
         </TrackerProvider>
       </body>
     </html>

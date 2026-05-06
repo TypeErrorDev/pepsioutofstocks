@@ -37,10 +37,7 @@ export default function LogTable() {
     : activeLogs.filter((log) => log.user_name === profile?.full_name);
 
   const indexOfLastItem = currentPage * itemsPerPage;
-  const currentLogs = filteredLogs.slice(
-    indexOfLastItem - itemsPerPage,
-    indexOfLastItem,
-  );
+  const currentLogs = filteredLogs.slice(indexOfLastItem - itemsPerPage, indexOfLastItem);
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
 
   // PST Formatting Helper
@@ -88,6 +85,7 @@ export default function LogTable() {
           </span>
         </div>
         <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
+        <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
             disabled={currentPage === 1}
@@ -95,6 +93,7 @@ export default function LogTable() {
           >
             <ChevronLeft size={14} />
           </button>
+          <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center">
           <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center">
             {currentPage}/{totalPages || 1}
           </span>
@@ -193,6 +192,7 @@ export default function LogTable() {
               </div>
               <button
                 onClick={() => setSelectedStore(null)}
+                className="p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all"
                 className="p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all"
               >
                 <X size={20} />
