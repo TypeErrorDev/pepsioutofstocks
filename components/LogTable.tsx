@@ -180,7 +180,7 @@ export default function LogTable() {
 
       {/* Main Detail Modal */}
       {selectedStore && modalData && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-9999] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-md"
             onClick={() => setSelectedStore(null)}
@@ -276,12 +276,12 @@ export default function LogTable() {
 
       {/* Sub-Modal: Resolution Reason */}
       {reasonModalId && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setReasonModalId(null)}
           />
-          <div className="relative bg-app-card border border-app-border w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6 animate-in zoom-in-95">
+          <div className="relative bg-app-card border border-app-border w-full max-w-sm rounded-4xl shadow-2xl overflow-hidden p-6 space-y-6 animate-in zoom-in-95">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-pepsi-blue text-[10px] font-black uppercase tracking-widest">
                 <ClipboardCheck size={12} /> Reason Code Required
@@ -295,7 +295,7 @@ export default function LogTable() {
               value={tempReason}
               onChange={(e) => setTempReason(e.target.value)}
               placeholder="Why is this issue being closed?"
-              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-[100px] resize-none"
+              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none"
             />
             <div className="flex gap-3">
               <button

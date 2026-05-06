@@ -11,7 +11,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
         <Activity className="text-pepsi-blue animate-pulse" size={40} />
         <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em]">
           Initializing Terminal...
@@ -27,7 +27,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 selection:bg-pepsi-blue/30">
       {/* --- SINGLE PERSISTENT HEADER --- */}
-      <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12 pb-0">
+      <div className="max-w-400 mx-auto p-4 md:p-8 lg:p-12 pb-0">
         <header className="relative z-50 flex flex-row items-center justify-between gap-6 border-b border-slate-900 pb-8">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-pepsi-blue">
@@ -65,7 +65,10 @@ export default function Home() {
               <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-pepsi-red transition-colors">
                 Sign Out
               </span>
-              <LogOut size={18} className="group-hover:translate-x-1 transition-transform" />
+              <LogOut
+                size={18}
+                className="group-hover:translate-x-1 transition-transform"
+              />
             </button>
           </div>
         </header>
