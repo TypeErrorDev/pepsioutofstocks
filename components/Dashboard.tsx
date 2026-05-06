@@ -31,11 +31,11 @@ export default function Dashboard() {
   ).length;
 
   return (
-    <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12 space-y-6 md:space-y-10">
+    <div className="max-w-400 mx-auto p-4 md:p-8 lg:p-12 space-y-6 md:space-y-10">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-pepsi-blue text-[10px] font-black uppercase tracking-[0.3em]">
-            <div className="w-8 h-[2px] bg-pepsi-blue" />
+            <div className="w-8 h-0.5 bg-pepsi-blue" />
             Field Intelligence Unit
           </div>
           <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter text-app-text">
@@ -93,7 +93,7 @@ export default function Dashboard() {
             <StockoutForm />
           </div>
         </div>
-        <div className="lg:col-span-8 bg-app-card border border-app-border rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[600px] flex flex-col">
+        <div className="lg:col-span-8 bg-app-card border border-app-border rounded-[2.5rem] shadow-2xl overflow-hidden min-h-150 flex flex-col">
           <LogTable />
         </div>
       </main>
@@ -132,7 +132,7 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="bg-app-card border border-app-border p-6 rounded-[2rem] shadow-xl transition-all hover:scale-[1.02]">
+    <div className="bg-app-card border border-app-border p-6 rounded-4xl shadow-xl transition-all hover:scale-[1.02]">
       <div className={`${color} mb-3`}>{icon}</div>
       <p className="text-[10px] font-black text-app-muted uppercase tracking-widest mb-1">
         {title}
