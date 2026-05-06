@@ -1,5 +1,11 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 
@@ -13,10 +19,27 @@ interface Profile {
   email: string;
 }
 
+export interface StockoutLog {
+  id: string;
+  created_at: string;
+  store: string;
+  brand: string;
+  pack_type: string;
+  location: string;
+  root_cause: string;
+  notes?: string;
+  user_name: string;
+  is_worked: boolean;
+  is_hidden: boolean;
+  resolution_reason?: string;
+  updated_at?: string;
+  updated_by?: string;
+}
+
 interface TrackerContextType {
   user: User | null;
   profile: Profile | null;
-  logs: any[];
+  logs: StockoutLog[];
   loading: boolean;
   signIn: (email: string, pass: string) => Promise<void>;
   signUp: (
@@ -28,6 +51,8 @@ interface TrackerContextType {
   ) => Promise<any>;
   signOut: () => Promise<void>;
   addLog: (logData: any) => Promise<void>;
+  toggleWorkedStatus: (logId: string, currentStatus: boolean) => Promise<void>;
+  hideLog: (logId: string, reason: string) => Promise<void>;
   fetchLogs: () => Promise<void>;
 }
 
@@ -36,7 +61,7 @@ const TrackerContext = createContext<TrackerContextType | undefined>(undefined);
 export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<StockoutLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -46,66 +71,77 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         .select("*")
         .eq("id", userId)
         .single();
+      if (error) throw error;
       if (data) setProfile(data);
-      return data;
     } catch (e) {
       console.error("Profile fetch error", e);
-      return null;
     }
   };
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("logs")
         .select("*")
         .order("created_at", { ascending: false });
-      if (data) setLogs(data);
+
+      if (error) throw error;
+      if (data) setLogs(data as StockoutLog[]);
     } catch (e) {
       console.error("Logs fetch error", e);
     }
-  };
+  }, []);
+
+  // REALTIME SUBSCRIPTION
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("realtime_logs")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "logs" },
+        () => {
+          fetchLogs();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchLogs]);
 
   useEffect(() => {
     const initializeAuth = async () => {
-      setLoading(true);
       try {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-
         if (session?.user) {
           setUser(session.user);
-          // Wait for both profile and logs to ensure the dashboard has data
           await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
         }
       } catch (error) {
-        console.error("Initialization error:", error);
+        console.error("Auth init error:", error);
       } finally {
-        // Guaranteed to run, preventing the "hang"
         setLoading(false);
       }
     };
-
     initializeAuth();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
-          await fetchLogs();
+          await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
         } else if (event === "SIGNED_OUT") {
           setUser(null);
           setProfile(null);
           setLogs([]);
         }
-        setLoading(false);
       },
     );
-
     return () => authListener.subscription.unsubscribe();
-  }, []);
+  }, [fetchLogs]);
 
   const signIn = async (email: string, pass: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -122,36 +158,18 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     gpid: string,
     role: UserRole,
   ) => {
-    if (gpid.length > 8) throw new Error("GPID cannot exceed 8 digits.");
-
     const { data, error } = await supabase.auth.signUp({
       email,
       password: pass,
-      options: {
-        data: {
-          full_name: fullName,
-          gpid: gpid,
-          role: role,
-        },
-      },
+      options: { data: { full_name: fullName, gpid: gpid, role: role } },
     });
     if (error) throw error;
     return data;
   };
 
   const signOut = async () => {
-    try {
-      setLoading(true);
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
-      setLogs([]);
-      // Hard redirect to clear any internal Next.js/Turbopack memory state
-      window.location.replace("/");
-    } catch (error) {
-      console.error("Sign out error:", error);
-      window.location.href = "/";
-    }
+    await supabase.auth.signOut();
+    window.location.replace("/");
   };
 
   const addLog = async (logData: any) => {
@@ -159,10 +177,37 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       {
         ...logData,
         user_name: profile?.full_name,
-        gpid: profile?.gpid,
-        created_at: new Date().toISOString(),
+        is_worked: false,
+        is_hidden: false,
       },
     ]);
+    if (error) throw error;
+    await fetchLogs();
+  };
+
+  const toggleWorkedStatus = async (logId: string, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from("logs")
+      .update({
+        is_worked: !currentStatus,
+        updated_by: profile?.full_name || "System",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", logId);
+    if (error) throw error;
+    await fetchLogs();
+  };
+
+  const hideLog = async (logId: string, reason: string) => {
+    const { error } = await supabase
+      .from("logs")
+      .update({
+        is_hidden: true,
+        resolution_reason: reason,
+        updated_by: profile?.full_name || "System",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", logId);
     if (error) throw error;
     await fetchLogs();
   };
@@ -178,6 +223,8 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         addLog,
+        toggleWorkedStatus,
+        hideLog,
         fetchLogs,
       }}
     >

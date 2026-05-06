@@ -3,27 +3,38 @@ import React, { useState, useMemo } from "react";
 import { useTracker } from "@/context/TrackerContext";
 import {
   MapPin,
-  User as UserIcon,
+  X,
+  MessageSquare,
+  CheckCircle2,
+  Circle,
   ChevronLeft,
   ChevronRight,
-  X,
-  ShoppingCart,
-  RefreshCw,
-  AlertCircle,
+  Calendar,
+  UserCheck,
   Clock,
+  EyeOff,
+  ClipboardCheck,
 } from "lucide-react";
 
 export default function LogTable() {
-  const { logs, profile, loading } = useTracker();
+  const { logs, profile, loading, toggleWorkedStatus, hideLog } = useTracker();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
-  const itemsPerPage = 6;
+  const [reasonModalId, setReasonModalId] = useState<string | null>(null);
+  const [tempReason, setTempReason] = useState("");
 
+  const itemsPerPage = 10;
+
+  // Filter out hidden items for display
+  const activeLogs = useMemo(
+    () => logs.filter((log) => !log.is_hidden),
+    [logs],
+  );
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
   const filteredLogs = isManagement
-    ? logs
-    : logs.filter((log) => log.user_name === profile?.full_name);
+    ? activeLogs
+    : activeLogs.filter((log) => log.user_name === profile?.full_name);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const currentLogs = filteredLogs.slice(
@@ -32,173 +43,126 @@ export default function LogTable() {
   );
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
 
+  // PST Formatting Helper
+  const formatPST = (dateString: string | undefined) => {
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleString("en-US", {
+      timeZone: "America/Los_Angeles",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   const modalData = useMemo(() => {
     if (!selectedStore) return null;
-    const storeLogs = logs.filter((l) => l.store === selectedStore);
-    return {
-      name: selectedStore,
-      stockouts: storeLogs.filter((l) => l.root_cause !== "In Backstock")
-        .length,
-      serviceGaps: storeLogs.filter((l) => l.root_cause === "In Backstock")
-        .length,
-      rawLogs: storeLogs,
-    };
-  }, [selectedStore, logs]);
+    return activeLogs.filter((l) => l.store === selectedStore);
+  }, [selectedStore, activeLogs]);
+
+  const submitHide = () => {
+    if (reasonModalId && tempReason.trim() !== "") {
+      hideLog(reasonModalId, tempReason);
+      setReasonModalId(null);
+      setTempReason("");
+    }
+  };
 
   if (loading)
     return (
-      <div className="p-20 text-center animate-pulse text-[10px] font-black text-slate-700 uppercase tracking-widest">
-        Syncing Stream...
+      <div className="p-20 text-center text-[10px] font-black text-app-muted uppercase tracking-widest">
+        Syncing Records...
       </div>
     );
 
   return (
-    <div className="flex flex-col h-full bg-slate-900">
-      {/* PAGINATION HEADER */}
-      <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-md">
+    <div className="flex flex-col h-full bg-app-card transition-colors">
+      <div className="p-5 border-b border-app-border flex justify-between items-center bg-app-card/50">
         <div className="flex flex-col">
-          <h3 className="text-xs font-black text-white uppercase italic tracking-widest leading-none mb-1">
-            Live Stream
+          <h3 className="text-xs font-black text-app-text uppercase italic tracking-widest leading-none mb-1">
+            Live Inventory Logs
           </h3>
-          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-            Field Activity Feed
+          <span className="text-[8px] font-bold text-app-muted uppercase tracking-widest">
+            {filteredLogs.length} Active Records
           </span>
         </div>
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className="p-2 text-white hover:bg-slate-800 rounded-lg transition-colors"
+            disabled={currentPage === 1}
+            className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30"
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="text-[10px] font-black text-slate-400 px-2 min-w-[40px] text-center">
+          <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center">
             {currentPage}/{totalPages || 1}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            className="p-2 text-white hover:bg-slate-800 rounded-lg transition-colors"
+            disabled={currentPage === totalPages || totalPages === 0}
+            className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30"
           >
             <ChevronRight size={14} />
           </button>
         </div>
       </div>
 
-      {/* MOBILE VIEW: Stacked Cards (No horizontal scroll) */}
-      <div className="block md:hidden divide-y divide-slate-800/50">
-        {currentLogs.map((log) => (
-          <div
-            key={log.id}
-            onClick={() => setSelectedStore(log.store)}
-            className="p-5 active:bg-slate-800 transition-colors flex flex-col gap-3"
-          >
-            <div className="flex justify-between items-start">
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-black text-white uppercase truncate">
-                  {log.brand}
-                </span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase">
-                  {log.pack_type} • {log.location}
-                </span>
-              </div>
-              <span
-                className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border shrink-0 ${
-                  log.root_cause === "In Backstock"
-                    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                    : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
-                }`}
-              >
-                {log.root_cause}
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <MapPin size={10} className="text-pepsi-blue" />
-                  <span className="text-xs font-black text-slate-300">
-                    Store #{log.store}
-                  </span>
-                </div>
-                {/* User restoration for mobile */}
-                <div className="flex items-center gap-2">
-                  <UserIcon size={10} className="text-slate-500" />
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">
-                    {log.user_name || "Unknown"}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 text-slate-600">
-                <Clock size={10} />
-                <span className="text-[9px] font-bold uppercase">
-                  {new Date(log.created_at).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* DESKTOP/TABLET VIEW: Traditional Table */}
-      <div className="hidden md:block overflow-x-hidden">
-        <table className="w-full text-left border-collapse table-fixed">
+      <div className="flex-1 overflow-y-auto">
+        <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-950/30 border-b border-slate-800">
-              <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                Item Details
+            <tr className="bg-app-bg/30 border-b border-app-border">
+              <th className="p-4 text-[9px] font-black text-app-muted uppercase tracking-widest w-12 text-center">
+                Status
               </th>
-              <th className="w-[120px] p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+              <th className="p-4 text-[9px] font-black text-app-muted uppercase tracking-widest">
+                Product Details
+              </th>
+              <th className="p-4 text-[9px] font-black text-app-muted uppercase tracking-widest">
                 Store
               </th>
-              <th className="w-[140px] p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
-                Logged By
-              </th>
-              <th className="w-[140px] p-4 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                Status
+              <th className="p-4 text-right text-[9px] font-black text-app-muted uppercase tracking-widest">
+                Cause
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/30">
+          <tbody className="divide-y divide-app-border/30">
             {currentLogs.map((log) => (
               <tr
                 key={log.id}
                 onClick={() => setSelectedStore(log.store)}
-                className="hover:bg-slate-800/40 transition-colors h-16 cursor-pointer"
+                className="hover:bg-app-bg/40 transition-colors cursor-pointer group"
               >
-                <td className="p-4">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-black text-white uppercase">
-                      {log.brand}
-                    </span>
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">
-                      {log.pack_type}
-                    </span>
-                  </div>
+                <td className="p-4 text-center">
+                  {log.is_worked ? (
+                    <CheckCircle2
+                      size={16}
+                      className="text-emerald-500 mx-auto"
+                    />
+                  ) : (
+                    <Circle
+                      size={16}
+                      className="text-app-muted/30 mx-auto group-hover:text-pepsi-blue/50 transition-colors"
+                    />
+                  )}
+                </td>
+                <td className="p-4 font-black text-xs uppercase text-app-text">
+                  {log.brand}{" "}
+                  <span className="text-app-muted font-bold ml-1">
+                    {log.pack_type}
+                  </span>
                 </td>
                 <td className="p-4">
                   <div className="flex items-center gap-2">
-                    <MapPin size={12} className="text-slate-600" />
-                    <span className="text-xs font-black text-slate-300">
+                    <MapPin size={12} className="text-pepsi-blue" />
+                    <span className="text-xs font-black text-app-text/90">
                       #{log.store}
                     </span>
                   </div>
                 </td>
-                {/* User column restored */}
-                <td className="p-4 text-center">
-                  <div className="inline-flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase bg-slate-950 px-2 py-1 rounded-md border border-slate-800">
-                    <UserIcon size={10} className="text-pepsi-blue" />
-                    <span>{log.user_name?.split(" ")[0] || "User"}</span>
-                  </div>
-                </td>
                 <td className="p-4 text-right">
                   <span
-                    className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${
-                      log.root_cause === "In Backstock"
-                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                        : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"
-                    }`}
+                    className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${log.root_cause === "Backstock" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"}`}
                   >
                     {log.root_cause}
                   </span>
@@ -209,67 +173,140 @@ export default function LogTable() {
         </table>
       </div>
 
-      {/* Modal section remains the same as previous stable version */}
+      {/* Main Detail Modal */}
       {selectedStore && modalData && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
             onClick={() => setSelectedStore(null)}
           />
-          <div className="relative w-full max-w-2xl bg-slate-900 border-t md:border border-slate-800 rounded-t-[2rem] md:rounded-[2rem] overflow-hidden flex flex-col max-h-[90vh]">
-            <header className="p-6 border-b border-slate-800 flex justify-between items-center">
-              <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">
-                #{selectedStore} History
-              </h2>
+          <div className="relative bg-app-card border border-app-border w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <header className="p-6 border-b border-app-border flex justify-between items-center bg-app-card/50">
+              <div>
+                <h2 className="text-xl font-black text-app-text uppercase italic tracking-tighter">
+                  Store{" "}
+                  <span className="text-pepsi-blue">#{selectedStore}</span>
+                </h2>
+                <p className="text-[10px] font-black text-app-muted uppercase tracking-widest">
+                  Active Audit
+                </p>
+              </div>
               <button
                 onClick={() => setSelectedStore(null)}
-                className="p-2 bg-slate-800 text-white rounded-xl"
+                className="p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all"
               >
                 <X size={20} />
               </button>
             </header>
-            <div className="p-6 overflow-y-auto space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <p className="text-[8px] font-black text-pepsi-blue uppercase mb-1 tracking-widest">
-                    OOS Events
-                  </p>
-                  <p className="text-xl font-black text-white italic">
-                    {modalData.stockouts}
-                  </p>
-                </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <p className="text-[8px] font-black text-amber-500 uppercase mb-1 tracking-widest">
-                    Service Gaps
-                  </p>
-                  <p className="text-xl font-black text-white italic">
-                    {modalData.serviceGaps}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  Verified Activity
-                </p>
-                {modalData.rawLogs.slice(0, 5).map((log: any, i: number) => (
-                  <div
-                    key={i}
-                    className="p-3 bg-slate-950/50 rounded-lg border border-slate-800 flex justify-between items-center"
-                  >
+
+            <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar">
+              {modalData.map((log) => (
+                <div
+                  key={log.id}
+                  className="p-4 bg-app-bg/30 rounded-2xl border border-app-border space-y-3"
+                >
+                  <div className="flex justify-between items-start">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-white uppercase">
-                        {log.brand}
+                      <span className="text-xs font-black text-app-text uppercase">
+                        {log.brand} {log.pack_type}
                       </span>
-                      <span className="text-[8px] text-slate-500 uppercase">
-                        {log.location}
-                      </span>
+                      <div className="flex items-center gap-1 text-[9px] font-bold text-app-muted uppercase">
+                        <Clock size={10} />
+                        <span>{formatPST(log.created_at)} PST</span>
+                      </div>
                     </div>
-                    <span className="text-[8px] font-black text-pepsi-blue uppercase">
-                      {log.root_cause}
-                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleWorkedStatus(log.id, log.is_worked);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${log.is_worked ? "bg-emerald-500 text-white border-emerald-600 shadow-lg shadow-emerald-500/20" : "bg-app-card text-app-text border-app-border hover:border-pepsi-blue"}`}
+                      >
+                        {log.is_worked ? "Worked" : "Mark Worked"}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReasonModalId(log.id);
+                        }}
+                        className="p-1.5 bg-app-bg text-app-muted hover:text-pepsi-red border border-app-border rounded-lg transition-colors"
+                      >
+                        <EyeOff size={14} />
+                      </button>
+                    </div>
                   </div>
-                ))}
+                  {log.notes && (
+                    <div className="flex gap-2 p-3 bg-app-bg/50 rounded-xl border border-app-border/50 italic text-[10px] text-app-text/80 leading-relaxed">
+                      <MessageSquare
+                        size={12}
+                        className="text-pepsi-blue shrink-0 mt-0.5"
+                      />
+                      <span>"{log.notes}"</span>
+                    </div>
+                  )}
+
+                  {/* Audit Trail Section */}
+                  {log.is_worked && log.updated_by && (
+                    <div className="pt-2 border-t border-app-border/30 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <UserCheck size={10} className="text-emerald-500" />
+                        <p className="text-[8px] font-black text-app-muted uppercase tracking-widest">
+                          Verified by{" "}
+                          <span className="text-app-text">
+                            {log.updated_by}
+                          </span>
+                        </p>
+                      </div>
+                      <p className="text-[7px] font-bold text-app-muted uppercase ml-4">
+                        Updated: {formatPST(log.updated_at)} PST
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-Modal: Resolution Reason */}
+      {reasonModalId && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setReasonModalId(null)}
+          />
+          <div className="relative bg-app-card border border-app-border w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6 animate-in zoom-in-95">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-pepsi-blue text-[10px] font-black uppercase tracking-widest">
+                <ClipboardCheck size={12} /> Reason Code Required
               </div>
+              <h3 className="text-xl font-black text-app-text uppercase italic">
+                Archive Entry
+              </h3>
+            </div>
+            <textarea
+              autoFocus
+              value={tempReason}
+              onChange={(e) => setTempReason(e.target.value)}
+              placeholder="Why is this issue being closed?"
+              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-[100px] resize-none"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setReasonModalId(null)}
+                className="flex-1 py-3 bg-app-bg text-app-muted text-[10px] font-black uppercase rounded-xl border border-app-border transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitHide}
+                disabled={tempReason.trim() === ""}
+                className="flex-1 py-3 bg-pepsi-blue text-white text-[10px] font-black uppercase rounded-xl shadow-lg shadow-pepsi-blue/20 hover:bg-pepsi-blue-dark transition-all disabled:opacity-50"
+              >
+                Confirm
+              </button>
             </div>
           </div>
         </div>
