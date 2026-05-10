@@ -9,7 +9,6 @@ import {
   Circle,
   ChevronLeft,
   ChevronRight,
-  Calendar,
   UserCheck,
   Clock,
   EyeOff,
@@ -25,7 +24,6 @@ export default function LogTable() {
 
   const itemsPerPage = 10;
 
-  // Filter out hidden items for display
   const activeLogs = useMemo(
     () => logs.filter((log) => !log.is_hidden),
     [logs],
@@ -38,14 +36,12 @@ export default function LogTable() {
     ? activeLogs
     : activeLogs.filter((log) => log.user_name === profile?.full_name);
 
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const currentLogs = filteredLogs.slice(
-    indexOfLastItem - itemsPerPage,
-    indexOfLastItem,
-  );
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const currentLogs = filteredLogs.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
-  // PST Formatting Helper
   const formatPST = (dateString: string | undefined) => {
     if (!dateString) return "";
     return new Date(dateString).toLocaleString("en-US", {
@@ -80,7 +76,6 @@ export default function LogTable() {
 
   return (
     <div className="flex flex-col h-full bg-app-card transition-colors">
-      {/* Table Header with Pagination */}
       <div className="p-5 border-b border-app-border flex justify-between items-center bg-app-card/50">
         <div className="flex flex-col">
           <h3 className="text-xs font-black text-app-text uppercase italic tracking-widest leading-none mb-1">
@@ -112,7 +107,6 @@ export default function LogTable() {
         </div>
       </div>
 
-      {/* Table Content */}
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -180,7 +174,7 @@ export default function LogTable() {
 
       {/* Main Detail Modal */}
       {selectedStore && modalData && (
-        <div className="fixed inset-0 z-9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-md"
             onClick={() => setSelectedStore(null)}
@@ -226,7 +220,7 @@ export default function LogTable() {
                           e.stopPropagation();
                           toggleWorkedStatus(log.id, log.is_worked);
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${log.is_worked ? "bg-emerald-500 text-white border-emerald-600 shadow-lg shadow-emerald-500/20" : "bg-app-card text-app-text border-app-border hover:border-pepsi-blue"}`}
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${log.is_worked ? "bg-emerald-500 text-white border-emerald-600 shadow-lg" : "bg-app-card text-app-text border-app-border hover:border-pepsi-blue"}`}
                       >
                         {log.is_worked ? "Worked" : "Mark Worked"}
                       </button>
@@ -250,7 +244,6 @@ export default function LogTable() {
                       <span>"{log.notes}"</span>
                     </div>
                   )}
-
                   {log.is_worked && log.updated_by && (
                     <div className="pt-2 border-t border-app-border/30 space-y-1">
                       <div className="flex items-center gap-2">
@@ -276,12 +269,12 @@ export default function LogTable() {
 
       {/* Sub-Modal: Resolution Reason */}
       {reasonModalId && (
-        <div className="fixed inset-0 z-10000 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setReasonModalId(null)}
           />
-          <div className="relative bg-app-card border border-app-border w-full max-w-sm rounded-4xl shadow-2xl overflow-hidden p-6 space-y-6 animate-in zoom-in-95">
+          <div className="relative bg-app-card border border-app-border w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-pepsi-blue text-[10px] font-black uppercase tracking-widest">
                 <ClipboardCheck size={12} /> Reason Code Required
@@ -295,7 +288,7 @@ export default function LogTable() {
               value={tempReason}
               onChange={(e) => setTempReason(e.target.value)}
               placeholder="Why is this issue being closed?"
-              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none"
+              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-[100px] resize-none"
             />
             <div className="flex gap-3">
               <button
@@ -307,7 +300,7 @@ export default function LogTable() {
               <button
                 onClick={submitHide}
                 disabled={tempReason.trim() === ""}
-                className="flex-1 py-3 bg-pepsi-blue text-white text-[10px] font-black uppercase rounded-xl shadow-lg shadow-pepsi-blue/20 hover:bg-pepsi-blue-dark transition-all disabled:opacity-50"
+                className="flex-1 py-3 bg-pepsi-blue text-white text-[10px] font-black uppercase rounded-xl shadow-lg hover:bg-pepsi-blue-dark transition-all disabled:opacity-50"
               >
                 Confirm
               </button>
