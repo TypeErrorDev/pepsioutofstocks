@@ -11,12 +11,15 @@ import {
   Clock,
   Package,
   X,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function InsightsPage() {
   const { logs, loading } = useTracker();
   const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const formatPST = (dateString: string | undefined) => {
     if (!dateString) return "";
@@ -30,13 +33,33 @@ export default function InsightsPage() {
     });
   };
 
+  // Combined Filter Logic: Store Search + Date Range
   const filteredLogs = useMemo(() => {
-    const active = logs.filter((l) => !l.is_hidden);
-    if (!searchQuery.trim()) return active;
-    return active.filter((l) =>
-      l.store.toLowerCase().includes(searchQuery.toLowerCase()),
-    );
-  }, [logs, searchQuery]);
+    let results = logs.filter((l) => !l.is_hidden);
+
+    // Filter by Store
+    if (searchQuery.trim()) {
+      results = results.filter((l) =>
+        l.store.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    }
+
+    // Filter by Start Date
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      results = results.filter((l) => new Date(l.created_at) >= start);
+    }
+
+    // Filter by End Date
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      results = results.filter((l) => new Date(l.created_at) <= end);
+    }
+
+    return results;
+  }, [logs, searchQuery, startDate, endDate]);
 
   const stats = useMemo(() => {
     const total = filteredLogs.length;
@@ -45,11 +68,17 @@ export default function InsightsPage() {
     return { total, worked, pending };
   }, [filteredLogs]);
 
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStartDate("");
+    setEndDate("");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-app-bg flex items-center justify-center">
         <p className="text-[10px] font-black text-app-muted uppercase tracking-[0.3em] animate-pulse">
-          Loading Market Data...
+          Syncing Market Intelligence...
         </p>
       </div>
     );
@@ -58,7 +87,7 @@ export default function InsightsPage() {
   return (
     <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12 space-y-8">
       {/* --- HEADER --- */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
         <div className="space-y-1">
           <Link
             href="/"
@@ -71,37 +100,68 @@ export default function InsightsPage() {
           </h1>
         </div>
 
-        {/* --- SEARCH BAR WITH CLEAR ICON --- */}
-        <div className="relative w-full md:w-96 group">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-app-muted group-focus-within:text-pepsi-blue transition-colors">
-            <Search size={18} />
+        {/* --- FILTER CONTROLS --- */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full lg:max-w-3xl">
+          {/* Store Search */}
+          <div className="relative group">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted group-focus-within:text-pepsi-blue transition-colors"
+              size={16}
+            />
+            <input
+              type="text"
+              placeholder="STORE #"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-app-card border border-app-border rounded-xl py-3 pl-10 pr-4 text-[10px] font-black text-app-text uppercase tracking-widest focus:outline-none focus:border-pepsi-blue transition-all shadow-lg"
+            />
           </div>
 
-          <input
-            type="text"
-            placeholder="SEARCH STORE NUMBER"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-app-card border border-app-border rounded-2xl py-4 pl-12 pr-12 text-xs font-bold text-app-text uppercase tracking-widest focus:outline-none focus:border-pepsi-blue transition-all shadow-xl placeholder:text-app-muted/50"
-          />
+          {/* Start Date */}
+          <div className="relative group">
+            <Calendar
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted"
+              size={16}
+            />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full bg-app-card border border-app-border rounded-xl py-3 pl-10 pr-4 text-[10px] font-black text-app-text uppercase focus:outline-none focus:border-pepsi-blue transition-all shadow-lg"
+            />
+          </div>
 
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-4 flex items-center text-app-muted hover:text-pepsi-red transition-colors"
-              aria-label="Clear search"
-            >
-              <X size={18} />
-            </button>
-          )}
+          {/* End Date */}
+          <div className="relative group">
+            <Calendar
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted"
+              size={16}
+            />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full bg-app-card border border-app-border rounded-xl py-3 pl-10 pr-4 text-[10px] font-black text-app-text uppercase focus:outline-none focus:border-pepsi-blue transition-all shadow-lg"
+            />
+          </div>
         </div>
       </header>
 
-      {/* --- QUICK STATS --- */}
+      {/* --- RESET ACTION --- */}
+      {(searchQuery || startDate || endDate) && (
+        <button
+          onClick={clearFilters}
+          className="flex items-center gap-2 text-[9px] font-black text-pepsi-red uppercase tracking-widest hover:underline"
+        >
+          <X size={12} /> Clear Active Filters
+        </button>
+      )}
+
+      {/* --- STATS GRID --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-app-card border border-app-border p-6 rounded-[2rem] shadow-xl">
           <p className="text-[10px] font-black text-app-muted uppercase tracking-widest mb-1">
-            Store Scope Logs
+            In-Scope Logs
           </p>
           <h3 className="text-4xl font-black text-app-text italic tracking-tighter">
             {stats.total}
@@ -127,15 +187,6 @@ export default function InsightsPage() {
 
       {/* --- RESULTS FEED --- */}
       <main className="bg-app-card border border-app-border rounded-[2.5rem] shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-app-border bg-app-card/50 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TrendingUp size={16} className="text-pepsi-blue" />
-            <h2 className="text-xs font-black text-app-text uppercase italic tracking-widest">
-              Store Audit Feed
-            </h2>
-          </div>
-        </div>
-
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -207,7 +258,7 @@ export default function InsightsPage() {
                       className="mx-auto text-app-muted/20 mb-4"
                     />
                     <p className="text-xs font-black text-app-muted uppercase tracking-widest">
-                      No matching store records found
+                      No matching records found for this criteria
                     </p>
                   </td>
                 </tr>
