@@ -39,10 +39,10 @@ export default function Dashboard() {
             Field Intelligence Unit
           </div>
           <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter text-app-text">
-            Inventory <span className="text-pepsi-blue">Command</span>
+            Out Of Stock <span className="text-pepsi-blue">Tracker</span>
           </h1>
           <p className="text-app-muted text-xs font-bold uppercase tracking-widest">
-            Operator: {profile?.full_name} | GPID: {profile?.gpid}
+            {profile?.full_name} | GPID: {profile?.gpid}
           </p>
         </div>
 

@@ -12,20 +12,33 @@ import {
 } from "lucide-react";
 
 const PACK_TYPES = [
-  "18 Pack", "12 Pack", "10 Pack", "8 Pack", "6 Pack",
-  "4 Pack", "28oz", "20oz", "2L", "1.25L", "Singles",
+  "18 Pack",
+  "12 Pack",
+  "10 Pack",
+  "8 Pack",
+  "6 Pack",
+  "4 Pack",
+  "28oz",
+  "20oz",
+  "2L",
+  "1.25L",
+  "Singles",
 ];
 
 const LOCATIONS = [
-  "Main Shelf", "Coolers", "Lobby", "Endcap", "Display", "Shippers",
+  "Main Shelf",
+  "Coolers",
+  "Lobby",
+  "Endcap",
+  "Display",
+  "Shippers",
 ];
 
 const ROOT_CAUSES = [
-  "Backstock",
-  "Warehouse Error",
-  "Store Delivery Refusal",
-  "Forecast Gap",
-  "Promotional Surge",
+  "Item In Backstock",
+  "Warehouse OOS",
+  "Ordering Error",
+  "On Sale/Promotion",
 ];
 
 export default function StockoutForm() {
@@ -97,7 +110,10 @@ export default function StockoutForm() {
             Brand / SKU
           </label>
           <div className="relative">
-            <Package className="absolute left-4 top-3.5 text-slate-500" size={16} />
+            <Package
+              className="absolute left-4 top-3.5 text-slate-500"
+              size={16}
+            />
             <input
               className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold placeholder:text-slate-500/50 transition-all"
               placeholder="e.g. Starry, Pepsi, Dew"
@@ -119,10 +135,11 @@ export default function StockoutForm() {
                 key={pType}
                 type="button"
                 onClick={() => setType(pType)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${type === pType
-                  ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-pepsi-blue/20"
-                  : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
-                  }`}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
+                  type === pType
+                    ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-pepsi-blue/20"
+                    : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
+                }`}
               >
                 {pType}
               </button>
@@ -141,10 +158,11 @@ export default function StockoutForm() {
                 key={loc}
                 type="button"
                 onClick={() => setLocation(loc)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${location === loc
-                  ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                  : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
-                  }`}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
+                  location === loc
+                    ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+                    : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
+                }`}
               >
                 {loc}
               </button>
@@ -158,7 +176,10 @@ export default function StockoutForm() {
             Store Identity
           </label>
           <div className="relative group">
-            <MapPin className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-pepsi-blue transition-colors" size={14} />
+            <MapPin
+              className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-pepsi-blue transition-colors"
+              size={14}
+            />
             <input
               type="text"
               className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 pr-10 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
@@ -185,15 +206,25 @@ export default function StockoutForm() {
             Logistical Cause
           </label>
           <div className="relative">
-            <AlertCircle className="absolute left-4 top-3.5 text-slate-500" size={16} />
+            <AlertCircle
+              className="absolute left-4 top-3.5 text-slate-500"
+              size={16}
+            />
             <select
               className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer"
               value={cause}
               onChange={(e) => setCause(e.target.value)}
             >
-              {ROOT_CAUSES.map(c => <option key={c} value={c} className="bg-slate-950">{c}</option>)}
+              {ROOT_CAUSES.map((c) => (
+                <option key={c} value={c} className="bg-slate-950">
+                  {c}
+                </option>
+              ))}
             </select>
-            <ChevronRight className="absolute right-4 top-4 text-slate-500 pointer-events-none rotate-90" size={14} />
+            <ChevronRight
+              className="absolute right-4 top-4 text-slate-500 pointer-events-none rotate-90"
+              size={14}
+            />
           </div>
         </div>
 
@@ -203,7 +234,10 @@ export default function StockoutForm() {
             Field Observations
           </label>
           <div className="relative">
-            <MessageSquare className="absolute left-4 top-3.5 text-slate-500" size={16} />
+            <MessageSquare
+              className="absolute left-4 top-3.5 text-slate-500"
+              size={16}
+            />
             <textarea
               className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold min-h-20 transition-all"
               placeholder="Specific notes (e.g. promo velocity surge)..."
@@ -226,7 +260,10 @@ export default function StockoutForm() {
         ) : (
           <>
             LOG FIELD ENTRY
-            <CheckCircle2 size={18} className="group-hover:scale-110 transition-transform" />
+            <CheckCircle2
+              size={18}
+              className="group-hover:scale-110 transition-transform"
+            />
           </>
         )}
       </button>
