@@ -12,6 +12,8 @@ import {
   Package,
   X,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -20,6 +22,10 @@ export default function InsightsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   const formatPST = (dateString: string | undefined) => {
     if (!dateString) return "";
@@ -33,25 +39,22 @@ export default function InsightsPage() {
     });
   };
 
-  // Combined Filter Logic: Store Search + Date Range
+  // Combined Filter Logic
   const filteredLogs = useMemo(() => {
     let results = logs.filter((l) => !l.is_hidden);
 
-    // Filter by Store
     if (searchQuery.trim()) {
       results = results.filter((l) =>
         l.store.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
-    // Filter by Start Date
     if (startDate) {
       const start = new Date(startDate);
       start.setHours(0, 0, 0, 0);
       results = results.filter((l) => new Date(l.created_at) >= start);
     }
 
-    // Filter by End Date
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
@@ -60,6 +63,13 @@ export default function InsightsPage() {
 
     return results;
   }, [logs, searchQuery, startDate, endDate]);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const currentLogs = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredLogs.slice(start, start + itemsPerPage);
+  }, [filteredLogs, currentPage]);
 
   const stats = useMemo(() => {
     const total = filteredLogs.length;
@@ -72,6 +82,7 @@ export default function InsightsPage() {
     setSearchQuery("");
     setStartDate("");
     setEndDate("");
+    setCurrentPage(1);
   };
 
   if (loading) {
@@ -102,7 +113,6 @@ export default function InsightsPage() {
 
         {/* --- FILTER CONTROLS --- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full lg:max-w-3xl">
-          {/* Store Search */}
           <div className="relative group">
             <Search
               className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted group-focus-within:text-pepsi-blue transition-colors"
@@ -112,12 +122,14 @@ export default function InsightsPage() {
               type="text"
               placeholder="STORE #"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full bg-app-card border border-app-border rounded-xl py-3 pl-10 pr-4 text-[10px] font-black text-app-text uppercase tracking-widest focus:outline-none focus:border-pepsi-blue transition-all shadow-lg"
             />
           </div>
 
-          {/* Start Date */}
           <div className="relative group">
             <Calendar
               className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted"
@@ -126,12 +138,14 @@ export default function InsightsPage() {
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full bg-app-card border border-app-border rounded-xl py-3 pl-10 pr-4 text-[10px] font-black text-app-text uppercase focus:outline-none focus:border-pepsi-blue transition-all shadow-lg"
             />
           </div>
 
-          {/* End Date */}
           <div className="relative group">
             <Calendar
               className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted"
@@ -140,22 +154,15 @@ export default function InsightsPage() {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full bg-app-card border border-app-border rounded-xl py-3 pl-10 pr-4 text-[10px] font-black text-app-text uppercase focus:outline-none focus:border-pepsi-blue transition-all shadow-lg"
             />
           </div>
         </div>
       </header>
-
-      {/* --- RESET ACTION --- */}
-      {(searchQuery || startDate || endDate) && (
-        <button
-          onClick={clearFilters}
-          className="flex items-center gap-2 text-[9px] font-black text-pepsi-red uppercase tracking-widest hover:underline"
-        >
-          <X size={12} /> Clear Active Filters
-        </button>
-      )}
 
       {/* --- STATS GRID --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -187,6 +194,36 @@ export default function InsightsPage() {
 
       {/* --- RESULTS FEED --- */}
       <main className="bg-app-card border border-app-border rounded-[2.5rem] shadow-2xl overflow-hidden">
+        <div className="p-5 border-b border-app-border flex justify-between items-center bg-app-card/50">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={16} className="text-pepsi-blue" />
+            <h2 className="text-xs font-black text-app-text uppercase italic tracking-widest">
+              Audit History
+            </h2>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30 transition-all"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center">
+              {currentPage} / {totalPages || 1}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30 transition-all"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -206,8 +243,8 @@ export default function InsightsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-app-border/30">
-              {filteredLogs.length > 0 ? (
-                filteredLogs.map((log) => (
+              {currentLogs.length > 0 ? (
+                currentLogs.map((log) => (
                   <tr
                     key={log.id}
                     className="hover:bg-app-bg/40 transition-colors"
@@ -258,7 +295,7 @@ export default function InsightsPage() {
                       className="mx-auto text-app-muted/20 mb-4"
                     />
                     <p className="text-xs font-black text-app-muted uppercase tracking-widest">
-                      No matching records found for this criteria
+                      No matching records found
                     </p>
                   </td>
                 </tr>
