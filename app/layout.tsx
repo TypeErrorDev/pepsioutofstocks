@@ -7,8 +7,8 @@ import AuthGate from "@/components/AuthGate";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FieldPortal | PepsiCo",
-  description: "Enterprise Inventory Intelligence",
+  title: "Out Of Stock Tracker",
+  description: "Quick tracker for Out Of Stock products",
 };
 
 export default function RootLayout({
@@ -20,9 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <TrackerProvider>
-          <AuthGate>
-            {children}
-          </AuthGate>
+          <AuthGate>{children}</AuthGate>
         </TrackerProvider>
       </body>
     </html>

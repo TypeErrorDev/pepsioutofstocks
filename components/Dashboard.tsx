@@ -36,7 +36,7 @@ export default function Dashboard() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-pepsi-blue text-[10px] font-black uppercase tracking-[0.3em]">
             <div className="w-8 h-0.5 bg-pepsi-blue" />
-            Field Intelligence Unit
+            Alpha Achievers
           </div>
           <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter text-app-text">
             Out Of Stock <span className="text-pepsi-blue">Tracker</span>
