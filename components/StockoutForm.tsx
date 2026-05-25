@@ -35,10 +35,10 @@ const LOCATIONS = [
 ];
 
 const ROOT_CAUSES = [
-  "Item In Backstock",
   "Warehouse OOS",
   "Ordering Error",
   "On Sale/Promotion",
+  "Discontinued",
 ];
 
 export default function StockoutForm() {
@@ -49,7 +49,7 @@ export default function StockoutForm() {
   const [type, setType] = useState("");
   const [store, setStore] = useState("");
   const [location, setLocation] = useState("");
-  const [cause, setCause] = useState("Backstock");
+  const [cause, setCause] = useState("Item In Backstock"); // Matched explicitly to first item in index
   const [notes, setNotes] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,10 +81,15 @@ export default function StockoutForm() {
       // Reset specific fields for next entry
       setBrand("");
       setNotes("");
-      setCause("Backstock");
+      setCause("Item In Backstock");
     } catch (err) {
-      console.error("Log failed:", err);
+      console.error("Log tracking transaction failed:", err);
+      alert(
+        "Connection timeout occurred. Please ensure you have service bars and try submitting again.",
+      );
     } finally {
+      // CRITICAL LOCK CIRCUIT BREAKER: This block executes under all outcomes,
+      // ensuring your submission button unlocks if the phone drops connection.
       setIsSubmitting(false);
     }
   };
@@ -120,6 +125,7 @@ export default function StockoutForm() {
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
               required
+              disabled={isSubmitting}
             />
           </div>
         </div>
@@ -134,11 +140,12 @@ export default function StockoutForm() {
               <button
                 key={pType}
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => setType(pType)}
                 className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
                   type === pType
                     ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-pepsi-blue/20"
-                    : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
+                    : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400 disabled:opacity-50"
                 }`}
               >
                 {pType}
@@ -157,11 +164,12 @@ export default function StockoutForm() {
               <button
                 key={loc}
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => setLocation(loc)}
                 className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
                   location === loc
                     ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                    : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400"
+                    : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400 disabled:opacity-50"
                 }`}
               >
                 {loc}
@@ -187,12 +195,13 @@ export default function StockoutForm() {
               value={store}
               onChange={(e) => setStore(e.target.value)}
               required
+              disabled={isSubmitting}
             />
-            {store && (
+            {store && !isSubmitting && (
               <button
                 type="button"
                 onClick={() => setStore("")}
-                className="absolute right-3 top-3 p-1 rounded-lg bg-slate-800 text-slate-500 hover:text-slate-50 hover:bg-red-500/20 transition-all"
+                className="absolute right-3 top-3 p-1 rounded-lg bg-slate-800 text-slate-500 hover:text-slate-50 hover:bg-red-500/20 transition-all cursor-pointer"
               >
                 <X size={14} />
               </button>
@@ -211,9 +220,10 @@ export default function StockoutForm() {
               size={16}
             />
             <select
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer disabled:opacity-50"
               value={cause}
               onChange={(e) => setCause(e.target.value)}
+              disabled={isSubmitting}
             >
               {ROOT_CAUSES.map((c) => (
                 <option key={c} value={c} className="bg-slate-950">
@@ -239,18 +249,20 @@ export default function StockoutForm() {
               size={16}
             />
             <textarea
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold min-h-20 transition-all"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold min-h-20 transition-all disabled:opacity-50"
               placeholder="Specific notes (e.g. promo velocity surge)..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              disabled={isSubmitting}
             />
           </div>
         </div>
       </div>
 
       <button
+        type="submit"
         disabled={isSubmitting}
-        className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+        className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
           <div className="flex items-center gap-2">
