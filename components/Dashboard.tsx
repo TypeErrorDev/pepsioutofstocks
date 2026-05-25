@@ -107,11 +107,17 @@ export default function Dashboard() {
           <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
             GPID: {profile?.gpid}
           </span>
+          <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
+            ©2026{" "}
+            <a target="_blank" href="https://www.x.com/TypeErrorDev">
+              TypeErrorDev
+            </a>
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
           <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
-            System Ready
+            System Active
           </span>
         </div>
       </footer>

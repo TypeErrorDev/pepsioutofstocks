@@ -14,7 +14,7 @@ export default function Home() {
       <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4">
         <Activity className="text-pepsi-blue animate-pulse" size={40} />
         <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em]">
-          Initializing Terminal...
+          Loading Tracker...
         </p>
       </div>
     );
