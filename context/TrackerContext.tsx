@@ -11,7 +11,12 @@ import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 
 // --- STRICT SYSTEM TYPES ---
-export type UserRole = "admin" | "team_lead" | "sales_rep" | "user";
+export type UserRole =
+  | "admin"
+  | "team_lead"
+  | "sales_rep"
+  | "merchandiser"
+  | "user";
 
 export interface Profile {
   id: string;
@@ -25,10 +30,12 @@ export interface Profile {
 export interface StockoutLog {
   id: string;
   store: string;
+  location: string;
   brand: string;
   pack_type: string;
   root_cause: string;
   notes: string | null;
+  gpid: string | null;
   is_worked: boolean;
   is_hidden: boolean;
   user_name: string;
@@ -57,6 +64,15 @@ interface TrackerContextType {
   ) => Promise<{ success: boolean }>;
   toggleWorkedStatus: (id: string, currentStatus: boolean) => Promise<void>;
   hideLog: (id: string, reason: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    full_name: string,
+    gpid: string,
+    role: UserRole,
+  ) => Promise<void>;
 }
 
 const TrackerContext = createContext<TrackerContextType | undefined>(undefined);
@@ -264,6 +280,62 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signIn = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+    if (data.user) {
+      setUser(data.user);
+      await Promise.all([fetchProfile(data.user.id), fetchLogs()]);
+    }
+  };
+
+  const signUp = async (
+    email: string,
+    password: string,
+    full_name: string,
+    gpid: string,
+    role: UserRole,
+  ) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      const { error: profileError } = await supabase.from("profiles").insert([
+        {
+          id: data.user.id,
+          username: email.split("@")[0],
+          full_name,
+          gpid,
+          role,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (profileError) throw profileError;
+      setUser(data.user);
+      await Promise.all([fetchProfile(data.user.id), fetchLogs()]);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      setLogs([]);
+    } catch (error) {
+      console.error("Sign out failed:", error);
+    }
+  };
+
   return (
     <TrackerContext.Provider
       value={{
@@ -275,6 +347,9 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         addLog,
         toggleWorkedStatus,
         hideLog,
+        signOut,
+        signIn,
+        signUp,
       }}
     >
       {children}

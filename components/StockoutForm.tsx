@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTracker } from "@/context/TrackerContext";
 import {
   Package,
@@ -37,18 +37,58 @@ const ROOT_CAUSES = [
 ];
 
 export default function StockoutForm() {
-  const { addLog, profile } = useTracker();
+  const { addLog, profile, logs } = useTracker();
 
   // Form States
   const [brand, setBrand] = useState("");
   const [type, setType] = useState("");
   const [store, setStore] = useState("");
   const [location, setLocation] = useState("");
-  const [cause, setCause] = useState("Item In Backstock"); // Matched explicitly to first item in index
+  const [cause, setCause] = useState("Item In Backstock");
   const [notes, setNotes] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Autocomplete UI States
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  // 1. Extract distinct existing brands from your live database logs
+  const distinctBrands = useMemo(() => {
+    if (!logs) return [];
+    const unique = new Set<string>();
+    logs.forEach((log) => {
+      if (log.brand && log.brand.trim() !== "") {
+        unique.add(log.brand.trim());
+      }
+    });
+    return Array.from(unique).sort();
+  }, [logs]);
+
+  // 2. Filter predictions dynamically as the user types
+  const filteredSuggestions = useMemo(() => {
+    if (!brand.trim()) return [];
+    return distinctBrands.filter(
+      (item) =>
+        item.toLowerCase().includes(brand.toLowerCase()) &&
+        item.toLowerCase() !== brand.toLowerCase(),
+    );
+  }, [brand, distinctBrands]);
+
+  // 3. Close the predictive dropdown cleanly if clicking outside the input area
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        autocompleteRef.current &&
+        !autocompleteRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,22 +98,22 @@ export default function StockoutForm() {
     }
 
     setIsSubmitting(true);
+    setShowSuggestions(false);
     try {
       await addLog({
-        product: `${brand} ${type}`.trim(),
-        brand,
+        brand: brand.trim(),
         pack_type: type,
         store: store,
         location,
         root_cause: cause,
         notes,
-        gpid: profile?.gpid,
+        gpid: profile?.gpid ?? null,
       });
 
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
 
-      // Reset specific fields for next entry
+      // Reset fields for the next entry
       setBrand("");
       setNotes("");
       setCause("Item In Backstock");
@@ -83,15 +123,13 @@ export default function StockoutForm() {
         "Connection timeout occurred. Please ensure you have service bars and try submitting again.",
       );
     } finally {
-      // CRITICAL LOCK CIRCUIT BREAKER: This block executes under all outcomes,
-      // ensuring your submission button unlocks if the phone drops connection.
       setIsSubmitting(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 relative">
-      {/* Success Overlay - Fixed to Hardcoded Slate */}
+      {/* Success Overlay */}
       {showSuccess && (
         <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center animate-in zoom-in duration-300">
           <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 border border-emerald-500/30">
@@ -104,8 +142,8 @@ export default function StockoutForm() {
       )}
 
       <div className="space-y-5">
-        {/* BRAND INPUT */}
-        <div className="space-y-1">
+        {/* BRAND INPUT WITH PREDICTIVE DROPDOWN */}
+        <div className="space-y-1 relative" ref={autocompleteRef}>
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Brand / SKU
           </label>
@@ -115,14 +153,39 @@ export default function StockoutForm() {
               size={16}
             />
             <input
+              type="text"
               className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold placeholder:text-slate-500/50 transition-all"
               placeholder="e.g. Starry, Pepsi, Dew"
               value={brand}
-              onChange={(e) => setBrand(e.target.value)}
+              onChange={(e) => {
+                setBrand(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
               required
               disabled={isSubmitting}
+              autoComplete="off"
             />
           </div>
+
+          {/* FLOATING SUGGESTIONS MENU */}
+          {showSuggestions && filteredSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-2 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl max-h-48 overflow-y-auto z-40 divide-y divide-slate-900 custom-scrollbar animate-in fade-in slide-in-from-top-1 duration-150">
+              {filteredSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => {
+                    setBrand(suggestion);
+                    setShowSuggestions(false);
+                  }}
+                  className="w-full text-left px-5 py-3 text-xs font-black text-slate-300 hover:text-white hover:bg-slate-900 transition-colors uppercase tracking-wide"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* PACK TYPE SELECTOR */}
@@ -154,7 +217,7 @@ export default function StockoutForm() {
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Store Location
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {LOCATIONS.map((loc) => (
               <button
                 key={loc}
