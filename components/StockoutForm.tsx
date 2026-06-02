@@ -12,12 +12,14 @@ import {
 } from "lucide-react";
 
 const PACK_TYPES = [
+  "24 Pack",
   "18 Pack",
   "12 Pack",
   "10 Pack",
   "8 Pack",
   "6 Pack",
   "4 Pack",
+  "64oz",
   "28oz",
   "20oz",
   "2L",
@@ -25,14 +27,7 @@ const PACK_TYPES = [
   "Singles",
 ];
 
-const LOCATIONS = [
-  "Main Shelf",
-  "Coolers",
-  "Lobby",
-  "Endcap",
-  "Display",
-  "Shippers",
-];
+const LOCATIONS = ["Main Shelf", "Coolers"];
 
 const ROOT_CAUSES = [
   "Warehouse OOS",
