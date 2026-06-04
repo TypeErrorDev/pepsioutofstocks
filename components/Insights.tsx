@@ -141,7 +141,7 @@ export default function Insights() {
               >
                 <div>
                   <p className="text-lg font-black text-app-text uppercase">
-                    Store #{store.name}
+                    Store {store.name}
                   </p>
                   <p className="text-[10px] font-bold text-app-muted uppercase tracking-tighter">
                     {store.stockouts} Logistical Gaps • {store.gaps} Service

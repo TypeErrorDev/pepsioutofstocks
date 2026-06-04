@@ -112,7 +112,7 @@ export default function InsightsPage() {
       const cleanExportData = filteredLogs.map((log) => ({
         "Record ID": log.id,
         "Timestamp (PST)": formatPST(log.created_at),
-        "Store Number": `#${log.store}`,
+        "Store Number": `${log.store}`,
         Brand: log.brand,
         Configuration: log.pack_type,
         "Root Cause Gaps": log.root_cause,
@@ -234,6 +234,7 @@ export default function InsightsPage() {
               className="absolute left-4 text-slate-600 pointer-events-none"
               size={14}
             />
+
             <input
               type="date"
               value={startDate}
@@ -338,7 +339,7 @@ export default function InsightsPage() {
                       {formatPST(log.created_at)} PST
                     </td>
                     <td className="p-4 font-black text-xs text-blue-500">
-                      #{log.store}
+                      {log.store}
                     </td>
                     <td className="p-4 font-black text-xs uppercase text-slate-200">
                       {log.brand}{" "}
@@ -388,11 +389,11 @@ export default function InsightsPage() {
                 <h2 className="text-xl font-black text-slate-100 uppercase italic tracking-tighter">
                   Store{" "}
                   <span className="text-blue-500">
-                    #{selectedLogModal.store}
+                    {selectedLogModal.store}
                   </span>
                 </h2>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                  Deep Metrics Audit Trail
+                  Audit Trail
                 </p>
               </div>
               <button
@@ -408,7 +409,7 @@ export default function InsightsPage() {
                 <div className="flex justify-between items-start">
                   <div className="flex flex-col space-y-1">
                     <span className="text-slate-400 font-bold uppercase text-[10px]">
-                      Product Identification
+                      Product Name
                     </span>
                     <span className="text-sm font-black text-slate-200 uppercase">
                       {selectedLogModal.brand} {selectedLogModal.pack_type}
@@ -427,7 +428,7 @@ export default function InsightsPage() {
                   </div>
                   <div>
                     <span className="text-slate-500 block font-black uppercase text-[8px]">
-                      Auditor Operator
+                      Merchandiser
                     </span>
                     <span className="font-bold text-slate-300">
                       {selectedLogModal.user_name || "Field Agent"}

@@ -28,8 +28,8 @@ export default function Home() {
     <div className="min-h-screen bg-slate-950 text-slate-50 selection:bg-pepsi-blue/30">
       {/* --- SINGLE PERSISTENT HEADER --- */}
       <div className="max-w-400 mx-auto p-4 md:p-8 lg:p-12 pb-0">
-        <header className="relative z-50 flex flex-row items-center justify-between gap-6 border-b border-slate-900 pb-8">
-          <div className="space-y-1">
+        <header className="relative z-50 flex flex-row items-center justify-between gap-6">
+          {/* <div className="space-y-1">
             <div className="flex items-center gap-2 text-pepsi-blue">
               <Activity size={14} className="animate-pulse" />
               <span className="text-[10px] font-black uppercase tracking-[0.3em]">
@@ -39,7 +39,7 @@ export default function Home() {
             <h2 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">
               Field <span className="text-pepsi-blue">Operations</span>
             </h2>
-          </div>
+          </div> */}
 
           <div className="flex items-center gap-4">
             {/* Identity Block */}
