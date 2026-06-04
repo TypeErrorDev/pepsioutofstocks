@@ -37,7 +37,8 @@ export default function Insights() {
         : storeMap[l.store].stockouts++;
 
       // Brand Aggregation
-      brandMap[l.brand] = (brandMap[l.brand] || 0) + 1;
+      const brand = l.brand ?? "Unknown";
+      brandMap[brand] = (brandMap[brand] || 0) + 1;
     });
 
     const chartData = Object.entries(brandMap)
