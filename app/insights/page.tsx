@@ -6,34 +6,47 @@ import {
   Search,
   X,
   ArrowLeft,
-  Download,
   ChevronLeft,
   ChevronRight,
-  Calendar,
   SlidersHorizontal,
   FileSpreadsheet,
+  MapPin,
+  TrendingUp,
+  Clock,
+  Calendar,
+  FilterX,
 } from "lucide-react";
 import Link from "next/link";
+
+type TimeModeType = "rolling" | "custom";
+type TimeRangeType = "days" | "weeks" | "months" | "quarters" | "years";
 
 export default function InsightsPage() {
   const { logs, profile, loading } = useTracker();
 
-  // Search, Filtering, and Pagination States
+  // Filter Configuration States
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterMode, setFilterMode] = useState<TimeModeType>("rolling");
+
+  // Rolling Mode States
+  const [timeValue, setTimeValue] = useState<number>(14); // Defaults to your 14-day cycle
+  const [timeUnit, setTimeUnit] = useState<TimeRangeType>("days");
+
+  // Custom Date States
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedLogModal, setSelectedLogModal] = useState<any | null>(null);
 
   const itemsPerPage = 10;
 
-  // 1. DETERMINE ROLE ACCESS
-  // Matches your platform specification rules: admin, team_lead, sales_rep
   const isAdmin = profile?.role === "admin";
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
 
-  // 2. DISABLE PAGE SCROLLING BEHIND MODALS
+  // Background page scrolling lock when drill-down modal is open
   useEffect(() => {
     if (selectedLogModal) {
       document.body.style.overflow = "hidden";
@@ -45,7 +58,7 @@ export default function InsightsPage() {
     };
   }, [selectedLogModal]);
 
-  // 3. PST FORMATTING HELPER
+  // PST Formatting Helper
   const formatPST = (dateString: string | undefined) => {
     if (!dateString) return "";
     return new Date(dateString).toLocaleString("en-US", {
@@ -59,56 +72,123 @@ export default function InsightsPage() {
     });
   };
 
-  // 4. MULTI-LEVEL FILTERING LOGIC (Role Matrix + Search Query + Date Windows)
+  // --- MULTI-LEVEL FILTERING LOGIC ---
   const filteredLogs = useMemo(() => {
-    // Stage A: Filter unhidden items & apply role visibility restrictions
     let data = logs.filter((log) => !log.is_hidden);
+
+    // 1. RBAC Scope Boundary
     if (!isManagement) {
       data = data.filter((log) => log.user_name === profile?.full_name);
     }
 
-    // Stage B: Filter by Target Store input string
+    // 2. Live Target Store Filter
     if (searchQuery.trim() !== "") {
       data = data.filter((log) =>
         log.store.toLowerCase().includes(searchQuery.toLowerCase().trim()),
       );
     }
 
-    // Stage C: Apply Date Range Filters
-    if (startDate) {
-      const startBounds = new Date(startDate);
-      startBounds.setHours(0, 0, 0, 0);
-      data = data.filter((log) => new Date(log.created_at) >= startBounds);
-    }
-    if (endDate) {
-      const endBounds = new Date(endDate);
-      endBounds.setHours(23, 59, 59, 999);
-      data = data.filter((log) => new Date(log.created_at) <= endBounds);
+    // 3. Time Filter Application
+    if (filterMode === "rolling") {
+      if (timeValue && timeValue > 0) {
+        const now = new Date();
+        const cutoff = new Date(now);
+
+        switch (timeUnit) {
+          case "days":
+            cutoff.setDate(now.getDate() - timeValue);
+            break;
+          case "weeks":
+            cutoff.setDate(now.getDate() - timeValue * 7);
+            break;
+          case "months":
+            cutoff.setMonth(now.getMonth() - timeValue);
+            break;
+          case "quarters":
+            cutoff.setMonth(now.getMonth() - timeValue * 3);
+            break;
+          case "years":
+            cutoff.setFullYear(now.getFullYear() - timeValue);
+            break;
+        }
+        data = data.filter((log) => new Date(log.created_at) >= cutoff);
+      }
+    } else {
+      // Custom Date Range Processing
+      if (startDate) {
+        const startBounds = new Date(startDate);
+        startBounds.setHours(0, 0, 0, 0);
+        data = data.filter((log) => new Date(log.created_at) >= startBounds);
+      }
+      if (endDate) {
+        const endBounds = new Date(endDate);
+        endBounds.setHours(23, 59, 59, 999);
+        data = data.filter((log) => new Date(log.created_at) <= endBounds);
+      }
     }
 
     return data;
-  }, [logs, profile, isManagement, searchQuery, startDate, endDate]);
+  }, [
+    logs,
+    profile,
+    isManagement,
+    searchQuery,
+    filterMode,
+    timeValue,
+    timeUnit,
+    startDate,
+    endDate,
+  ]);
 
-  // 5. PAGINATION COMPUTATIONS
+  // --- ACCOUNT PRIORITY INDEX AGGREGATION ---
+  const storeRankings = useMemo(() => {
+    const storeMap: Record<
+      string,
+      { name: string; stockouts: number; gaps: number; total: number }
+    > = {};
+
+    filteredLogs.forEach((log) => {
+      if (!storeMap[log.store]) {
+        storeMap[log.store] = {
+          name: log.store,
+          stockouts: 0,
+          gaps: 0,
+          total: 0,
+        };
+      }
+      if (
+        log.root_cause === "Backstock" ||
+        log.root_cause === "Item In Backstock"
+      ) {
+        storeMap[log.store].gaps++;
+      } else {
+        storeMap[log.store].stockouts++;
+      }
+      storeMap[log.store].total++;
+    });
+
+    return Object.values(storeMap).sort((a, b) => b.total - a.total);
+  }, [filteredLogs]);
+
+  // --- PAGINATION COMPUTATIONS ---
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+
   const currentLogs = useMemo(() => {
     return filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
   }, [filteredLogs, indexOfFirstItem, indexOfLastItem]);
 
-  // Reset pagination indexes on input parameter adjustments
+  // Reset page position index on search parameters adjustment
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, startDate, endDate]);
+  }, [searchQuery, filterMode, timeValue, timeUnit, startDate, endDate]);
 
-  // 6. PERFORMANCE-OPTIMIZED CLIENT EXCEL GENERATION
+  // --- CLIENT SIDE SHEETJS COMPILER ---
   const handleExportToExcel = async () => {
     try {
-      // Lazy load library to preserve critical-path client performance
       const XLSX = await import("xlsx");
 
-      // Map analytics structure into human-readable columns
       const cleanExportData = filteredLogs.map((log) => ({
         "Record ID": log.id,
         "Timestamp (PST)": formatPST(log.created_at),
@@ -124,10 +204,9 @@ export default function InsightsPage() {
 
       const worksheet = XLSX.utils.json_to_sheet(cleanExportData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Inventory Metrics");
+      XLSX.utils.book_append_sheet(workbook, worksheet, "ShelfHealth Data");
 
-      // Format column widths beautifully within the output worksheet
-      const maxColumnWidths = [
+      worksheet["!cols"] = [
         { wch: 12 },
         { wch: 22 },
         { wch: 15 },
@@ -139,15 +218,13 @@ export default function InsightsPage() {
         { wch: 22 },
         { wch: 35 },
       ];
-      worksheet["!cols"] = maxColumnWidths;
 
-      // Flush workbook down to system shell filesystem as binary attachment download
       XLSX.writeFile(
         workbook,
-        `pepsi_stockout_report_${new Date().toISOString().slice(0, 10)}.xlsx`,
+        `shelfhealth_report_${new Date().toISOString().slice(0, 10)}.xlsx`,
       );
     } catch (err) {
-      console.error("Critical Excel compiling exception occurred:", err);
+      console.error("Excel tracking generation fault:", err);
     }
   };
 
@@ -164,25 +241,21 @@ export default function InsightsPage() {
       {/* HEADER SEGMENT */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-900 pb-6">
         <div className="space-y-1">
-          <div className="space-y-1">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-pepsi-blue text-xs font-black uppercase tracking-[0.3em] hover:opacity-70 transition-opacity mb-2"
-            >
-              <ArrowLeft size={12} /> Back to Dashboard
-            </Link>
-          </div>
-
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-pepsi-blue text-xs font-black uppercase tracking-[0.3em] hover:opacity-70 transition-opacity mb-2"
+          >
+            <ArrowLeft size={12} /> Back to Dashboard
+          </Link>
           <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">
-            Data <span className="text-blue-600">Insights</span>
+            Shelf<span className="text-blue-600">Health</span> Analytics
           </h1>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
-            Operator: {profile?.full_name || "Unknown"} | Scope:{" "}
+            Operator: {profile?.full_name || "Unknown"} | Access Rank:{" "}
             {profile?.role?.toUpperCase() || "USER"}
           </p>
         </div>
 
-        {/* ADMIN EXCEL PORTAL CONTROL */}
         {isAdmin && (
           <button
             onClick={handleExportToExcel}
@@ -192,97 +265,244 @@ export default function InsightsPage() {
               size={18}
               className="animate-pulse group-hover:scale-110 transition-transform"
             />
-            <span>Export Master Sheet (.XLSX)</span>
+            <span>Export Filtered Range (.XLSX)</span>
           </button>
         )}
       </header>
 
-      {/* SEARCH CONTROL BAR */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center gap-2 text-slate-400 text-xs font-black uppercase tracking-widest mb-2">
-          <SlidersHorizontal size={14} className="text-blue-500" />
-          <span>Query Configuration Engine</span>
+      {/* TACTICAL METRIC CONFIGURATION CONTROLS */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="flex items-center gap-2 text-slate-400 text-xs font-black uppercase tracking-widest">
+            <SlidersHorizontal size={14} className="text-blue-500" />
+            <span>Query Configuration Engine</span>
+          </div>
+
+          {/* FILTER MODE TOGGLE SWITCHES */}
+          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setFilterMode("rolling")}
+              className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                filterMode === "rolling"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
+                  : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              Rolling Window
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterMode("custom")}
+              className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                filterMode === "custom"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
+                  : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              Custom Dates
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Store Input Element */}
-          <div className="lg:col-span-6 relative">
-            <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
-              size={16}
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="FILTER BY STORE NUMBER (IE: 5406)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-10 py-3.5 text-xs text-slate-200 font-bold placeholder-slate-600 focus:outline-none focus:border-blue-600 tracking-wider uppercase"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 rounded-md transition-all cursor-pointer"
-              >
-                <X size={12} />
-              </button>
-            )}
+          {/* Store Finder Search Input */}
+          <div className="lg:col-span-5 relative flex flex-col justify-end">
+            <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
+              Store Account Filter
+            </label>
+            <div className="relative">
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                size={16}
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="FILTER BY STORE NUMBER (IE: 3213)..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-10 py-3.5 text-xs text-slate-200 font-bold placeholder-slate-600 focus:outline-none focus:border-blue-600 tracking-wider uppercase"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 rounded-md transition-all cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Date Window Fields */}
-          <div className="lg:col-span-3 relative flex items-center">
-            <Calendar
-              className="absolute left-4 text-slate-600 pointer-events-none"
-              size={14}
-            />
+          {/* DYNAMIC RENDERING INTERCHANGEABLE CONTROLS */}
+          {filterMode === "rolling" ? (
+            <>
+              {/* Rolling Interval Value Input */}
+              <div className="lg:col-span-3 flex flex-col justify-end">
+                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
+                  Accumulation Magnitude
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={timeValue || ""}
+                  onChange={(e) => setTimeValue(parseInt(e.target.value) || 0)}
+                  placeholder="ENTER VALUE..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-200 font-black placeholder-slate-700 focus:outline-none focus:border-blue-600 tracking-widest"
+                />
+              </div>
 
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-xs text-slate-400 font-bold focus:outline-none focus:border-blue-600 uppercase"
-            />
-            {startDate && (
-              <button
-                onClick={() => setStartDate("")}
-                className="absolute right-3 text-slate-600 hover:text-slate-300 text-xs font-bold"
-              >
-                CLEAR
-              </button>
-            )}
-          </div>
+              {/* Timeframe Incremental Unit Selector */}
+              <div className="lg:col-span-4 flex flex-col justify-end">
+                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
+                  Rolling Scale Unit
+                </label>
+                <select
+                  value={timeUnit}
+                  onChange={(e) => setTimeUnit(e.target.value as TimeRangeType)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-400 font-black focus:outline-none focus:border-blue-600 uppercase tracking-widest cursor-pointer"
+                >
+                  <option value="days">Rolling Days</option>
+                  <option value="weeks">Rolling Weeks</option>
+                  <option value="months">Rolling Months</option>
+                  <option value="quarters">Rolling Quarters</option>
+                  <option value="years">Rolling Years</option>
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Custom Date Range Picker Fields */}
+              <div className="lg:col-span-3 relative flex flex-col justify-end">
+                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
+                  Timeline Window (Start)
+                </label>
+                <div className="relative flex items-center">
+                  <Calendar
+                    className="absolute left-4 text-slate-600 pointer-events-none"
+                    size={14}
+                  />
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-xs text-slate-400 font-bold focus:outline-none focus:border-blue-600 uppercase"
+                  />
+                  {startDate && (
+                    <button
+                      onClick={() => setStartDate("")}
+                      className="absolute right-3 text-slate-600 hover:text-slate-300 text-[10px] font-black"
+                    >
+                      CLEAR
+                    </button>
+                  )}
+                </div>
+              </div>
 
-          <div className="lg:col-span-3 relative flex items-center">
-            <Calendar
-              className="absolute left-4 text-slate-600 pointer-events-none"
-              size={14}
-            />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-xs text-slate-400 font-bold focus:outline-none focus:border-blue-600 uppercase"
-            />
-            {endDate && (
-              <button
-                onClick={() => setEndDate("")}
-                className="absolute right-3 text-slate-600 hover:text-slate-300 text-xs font-bold"
-              >
-                CLEAR
-              </button>
-            )}
-          </div>
+              <div className="lg:col-span-4 relative flex flex-col justify-end">
+                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
+                  Timeline Window (End)
+                </label>
+                <div className="relative flex items-center">
+                  <Calendar
+                    className="absolute left-4 text-slate-600 pointer-events-none"
+                    size={14}
+                  />
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-xs text-slate-400 font-bold focus:outline-none focus:border-blue-600 uppercase"
+                  />
+                  {endDate && (
+                    <button
+                      onClick={() => setEndDate("")}
+                      className="absolute right-3 text-slate-600 hover:text-slate-300 text-[10px] font-black"
+                    >
+                      CLEAR
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* FILTER RESULTS FEED MODULE */}
+      {/* --- STORE VELOCITY INDEX (INTERACTIVE ROW SELECTION) --- */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={16} className="text-pepsi-blue" />
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              Timeframe Store Velocity Index (Click row to isolate query feed)
+            </p>
+          </div>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-950 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+            >
+              <FilterX size={12} />
+              Reset Active Filter
+            </button>
+          )}
+        </div>
+        <div className="divide-y divide-slate-950 max-h-96 overflow-y-auto custom-scrollbar">
+          {storeRankings.length > 0 ? (
+            storeRankings.map((store, idx) => (
+              <div
+                key={store.name}
+                onClick={() => setSearchQuery(store.name)}
+                className={`p-5 flex items-center justify-between hover:bg-slate-950/60 cursor-pointer transition-all duration-150 group ${
+                  searchQuery === store.name
+                    ? "bg-slate-950/80 border-l-4 border-l-blue-600 pl-4"
+                    : ""
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-xs font-black text-slate-600 w-6">
+                    #{idx + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-black text-white uppercase tracking-wide group-hover:text-blue-400 transition-colors">
+                      Store #{store.name}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mt-0.5">
+                      {store.stockouts} Logistical Interruptions • {store.gaps}{" "}
+                      Backstock Replenishment Gaps
+                    </p>
+                  </div>
+                </div>
+                <div
+                  className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all ${
+                    store.total > 5
+                      ? "bg-red-500/10 text-red-400 border-red-500/20 shadow-lg shadow-red-500/5"
+                      : "bg-slate-950 text-slate-400 border-slate-800 group-hover:border-slate-600"
+                  }`}
+                >
+                  {store.total} Total Logs
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-10 text-center text-xs font-black text-slate-600 uppercase tracking-widest">
+              No store logs registered within selected timeframe parameters.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* MASTER DATA QUERY GRID VIEW */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
         <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
           <div className="flex flex-col">
             <h3 className="text-xs font-black uppercase italic tracking-widest leading-none mb-1 text-slate-300">
-              Query Index Feed
+              Query Index Feed{" "}
+              {searchQuery && `— Isolated to Store #${searchQuery}`}
             </h3>
             <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-              {filteredLogs.length} Matching Records Identified
+              {filteredLogs.length} Records Found For Current Criteria
             </span>
           </div>
 
@@ -338,8 +558,9 @@ export default function InsightsPage() {
                     <td className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
                       {formatPST(log.created_at)} PST
                     </td>
-                    <td className="p-4 font-black text-xs text-blue-500">
-                      {log.store}
+                    <td className="p-4 font-black text-xs text-blue-500 flex items-center gap-1.5">
+                      <MapPin size={12} className="text-slate-600" />
+                      <span>{log.store}</span>
                     </td>
                     <td className="p-4 font-black text-xs uppercase text-slate-200">
                       {log.brand}{" "}
@@ -350,7 +571,8 @@ export default function InsightsPage() {
                     <td className="p-4 text-right">
                       <span
                         className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${
-                          log.root_cause === "Backstock"
+                          log.root_cause === "Backstock" ||
+                          log.root_cause === "Item In Backstock"
                             ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                             : "bg-red-500/10 text-red-400 border-red-500/20"
                         }`}
@@ -366,8 +588,8 @@ export default function InsightsPage() {
                     colSpan={4}
                     className="p-20 text-center text-xs font-black text-slate-600 uppercase tracking-widest"
                   >
-                    No matching records discovered inside current parameter
-                    matrix.
+                    No matching records discovered inside current rolling window
+                    array.
                   </td>
                 </tr>
               )}
@@ -376,7 +598,7 @@ export default function InsightsPage() {
         </div>
       </div>
 
-      {/* DRILL DOWN LOG ENTRY MODAL SCREEN - SCROLL IS COMPLETELY LOCKED OUTSIDE WINDOW */}
+      {/* DRILL DOWN LOG ENTRY MODAL SCREEN */}
       {selectedLogModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div
