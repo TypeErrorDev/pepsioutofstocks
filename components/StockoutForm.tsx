@@ -103,6 +103,7 @@ export default function StockoutForm() {
     setShowSuggestions(false);
     try {
       await addLog({
+        brand: brand.trim(),
         product: brand.trim(),
         pack_type: type,
         store: store,
