@@ -7,8 +7,8 @@ import AuthGate from "@/components/AuthGate";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Out Of Stock Tracker",
-  description: "Quick tracker for Out Of Stock products",
+  title: "Shelf Health App",
+  description: "A tool to track Out Of Stock Products by store locations",
 };
 
 export default function RootLayout({

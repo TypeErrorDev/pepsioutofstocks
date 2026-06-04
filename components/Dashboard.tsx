@@ -39,7 +39,7 @@ export default function Dashboard() {
             Alpha Achievers
           </div>
           <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter text-app-text">
-            Out Of Stock <span className="text-pepsi-blue">Tracker</span>
+            Shelf <span className="text-pepsi-blue">Health</span>
           </h1>
           <p className="text-app-muted text-xs font-bold uppercase tracking-widest">
             {profile?.full_name} | GPID: {profile?.gpid}

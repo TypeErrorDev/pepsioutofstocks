@@ -167,7 +167,7 @@ export default function LogTable() {
                   <div className="flex items-center gap-2">
                     <MapPin size={12} className="text-pepsi-blue" />
                     <span className="text-xs font-black text-app-text/90">
-                      #{log.store}
+                      {log.store}
                     </span>
                   </div>
                 </td>
@@ -186,7 +186,7 @@ export default function LogTable() {
 
       {/* Main Detail Modal */}
       {selectedStore && modalData && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-999 flex items-center justify-center p-4 overflow-y-auto">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-md"
             onClick={() => setSelectedStore(null)}
@@ -255,7 +255,46 @@ export default function LogTable() {
         </div>
       )}
 
-      {/* Sub-Modal Logic stays the same... */}
+      {reasonModalId && (
+        <div className="fixed inset-0 z-1000 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setReasonModalId(null)}
+          />
+          <div className="relative bg-app-card border border-app-border w-full max-w-sm rounded-4xl shadow-2xl overflow-hidden p-6 space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-pepsi-blue text-[10px] font-black uppercase tracking-widest">
+                <ClipboardCheck size={12} /> Reason Code Required
+              </div>
+              <h3 className="text-xl font-black text-app-text uppercase italic">
+                Archive Entry
+              </h3>
+            </div>
+            <textarea
+              autoFocus
+              value={tempReason}
+              onChange={(e) => setTempReason(e.target.value)}
+              placeholder="Why is this issue being closed?"
+              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setReasonModalId(null)}
+                className="flex-1 py-3 bg-app-bg text-app-muted text-[10px] font-black uppercase rounded-xl border border-app-border transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitHide}
+                disabled={tempReason.trim() === ""}
+                className="flex-1 py-3 bg-pepsi-blue text-white text-[10px] font-black uppercase rounded-xl shadow-lg hover:bg-pepsi-blue-dark transition-all disabled:opacity-50"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

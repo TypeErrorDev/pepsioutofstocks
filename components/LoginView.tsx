@@ -41,11 +41,16 @@ export default function LoginView() {
         <div className="relative z-10">
           <header className="mb-8 text-center">
             <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">
-              {isRegistering ? "System" : "Operational"}{" "}
+              {isRegistering ? "User" : "Shelf"}{" "}
               <span className="text-pepsi-blue">
-                {isRegistering ? "Registration" : "Portal"}
+                {isRegistering ? "Registration" : "Health"}
               </span>
             </h2>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">
+              {isRegistering
+                ? "Create a new account for field personnel"
+                : "Quickly track out of stock products on the go"}
+            </p>
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,7 +71,7 @@ export default function LoginView() {
 
                 <div className="space-y-1">
                   <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-widest">
-                    GPID (8 Digits Max)
+                    PID (8 Digits Max)
                   </label>
                   <div className="relative">
                     <Fingerprint
@@ -97,7 +102,7 @@ export default function LoginView() {
                     value={role}
                     onChange={(e) => setRole(e.target.value as UserRole)}
                   >
-                    <option value="merchandiser">Merchandiser</option>
+                    <option value="merchandiser">Merch</option>
                     <option value="sales_rep">Sales Rep</option>
                     <option value="team_lead">Team Lead</option>
                   </select>
