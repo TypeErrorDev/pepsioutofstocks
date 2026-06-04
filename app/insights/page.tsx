@@ -12,8 +12,6 @@ import {
   FileSpreadsheet,
   MapPin,
   TrendingUp,
-  Clock,
-  Calendar,
   FilterX,
   Circle,
   CheckCircle,
@@ -51,7 +49,6 @@ export default function InsightsPage() {
 
   const itemsPerPage = 10;
 
-  const isAdmin = profile?.role === "admin";
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
 
@@ -95,7 +92,6 @@ export default function InsightsPage() {
       const targetLog = logs.find((l) => l.id === reasonModalId);
       if (!targetLog) return;
 
-      // Pass task execution up to context handler, bypassing direct client db connections
       await toggleWorkedStatus(
         reasonModalId,
         targetLog.is_worked,
@@ -231,58 +227,24 @@ export default function InsightsPage() {
     endDate,
   ]);
 
-  const handleExportToExcel = async () => {
-    try {
-      const XLSX = await import("xlsx");
-      const cleanExportData = filteredLogs.map((log) => ({
-        "Record ID": log.id,
-        "Timestamp (PST)": formatPST(log.created_at),
-        "Store Number": `${log.store}`,
-        Brand: log.brand,
-        Configuration: log.pack_type,
-        "Root Cause Gaps": log.root_cause,
-        "Audit Status": log.is_worked ? "Worked / Resolved" : "Open Status",
-        "Auditor Identity": log.user_name || "System Operator",
-        "Verification Authority": log.updated_by || "Unverified",
-        "Field Notes": log.notes || "",
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(cleanExportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "ShelfHealth Data");
-
-      worksheet["!cols"] = [
-        { wch: 12 },
-        { wch: 22 },
-        { wch: 15 },
-        { wch: 18 },
-        { wch: 15 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 22 },
-        { wch: 22 },
-        { wch: 35 },
-      ];
-
-      XLSX.writeFile(
-        workbook,
-        `shelfhealth_report_${new Date().toISOString().slice(0, 10)}.xlsx`,
-      );
-    } catch (err) {
-      console.error("Excel tracking generation fault:", err);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-20 text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] bg-slate-950 min-h-screen">
-        Syncing Analytical Core...
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12 space-y-6 md:space-y-10 text-slate-100 bg-slate-950 min-h-screen">
+      {/* GLOBAL HEADLESS DATE PICKER STYLING ACCELERATOR */}
+      <style jsx global>{`
+        /* Remove webkit and gecko native floating calendar pick indicators */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          display: none !important;
+          -webkit-appearance: none !important;
+        }
+        input[type="date"]::-moz-calendar-picker-indicator {
+          display: none !important;
+          appearance: none !important;
+        }
+        input[type="date"] {
+          position: relative;
+        }
+      `}</style>
+
       {/* HEADER SEGMENT */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-900 pb-6">
         <div className="space-y-1">
@@ -300,19 +262,6 @@ export default function InsightsPage() {
             {profile?.role?.toUpperCase() || "USER"}
           </p>
         </div>
-
-        {isAdmin && (
-          <button
-            onClick={handleExportToExcel}
-            className="group flex items-center justify-center gap-3 bg-slate-900 border border-slate-800 text-emerald-400 hover:text-emerald-300 px-6 py-4 rounded-2xl hover:border-emerald-500/50 hover:bg-emerald-950/20 transition-all duration-300 shadow-xl cursor-pointer text-xs font-black uppercase tracking-wider"
-          >
-            <FileSpreadsheet
-              size={18}
-              className="animate-pulse group-hover:scale-110 transition-transform"
-            />
-            <span>Export Filtered Range (.XLSX)</span>
-          </button>
-        )}
       </header>
 
       {/* TACTICAL METRIC CONFIGURATION CONTROLS */}
@@ -419,18 +368,72 @@ export default function InsightsPage() {
 
           {filterMode === "rolling" ? (
             <>
+              {/* Rolling Interval Value Input with Styled Custom Click Adjusters */}
               <div className="lg:col-span-3 flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
                   Accumulation Magnitude
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={timeValue || ""}
-                  onChange={(e) => setTimeValue(parseInt(e.target.value) || 0)}
-                  placeholder="ENTER VALUE..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-200 font-black placeholder-slate-700 focus:outline-none focus:border-blue-600 tracking-widest"
-                />
+                <div className="relative group">
+                  <input
+                    type="number"
+                    min={1}
+                    value={timeValue || ""}
+                    onChange={(e) =>
+                      setTimeValue(parseInt(e.target.value) || 0)
+                    }
+                    placeholder="ENTER VALUE..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3.5 text-xs text-slate-200 font-black placeholder-slate-700 focus:outline-none focus:border-blue-600 tracking-widest transition-all"
+                  />
+
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() => setTimeValue((prev) => (prev || 0) + 1)}
+                      className="p-0.5 text-slate-500 hover:text-blue-500 hover:bg-slate-900 rounded-md transition-all active:scale-95 cursor-pointer"
+                      title="Increment"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4.5 15.75l7.5-7.5 7.5 7.5"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTimeValue((prev) => Math.max(1, (prev || 0) - 1))
+                      }
+                      className="p-0.5 text-slate-500 hover:text-blue-500 hover:bg-slate-900 rounded-md transition-all active:scale-95 cursor-pointer"
+                      title="Decrement"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="lg:col-span-4 flex flex-col justify-end">
@@ -452,25 +455,32 @@ export default function InsightsPage() {
             </>
           ) : (
             <>
+              {/* Custom Date Range Picker Fields with Automatic Open-on-Focus Triggers */}
               <div className="lg:col-span-3 relative flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
                   Timeline Window (Start)
                 </label>
                 <div className="relative flex items-center">
-                  <Calendar
-                    className="absolute left-4 text-slate-600 pointer-events-none"
-                    size={14}
-                  />
                   <input
                     type="date"
                     value={startDate}
+                    onFocus={(e) => {
+                      try {
+                        e.target.showPicker();
+                      } catch (err) {}
+                    }}
+                    onClick={(e) => {
+                      try {
+                        (e.target as HTMLInputElement).showPicker();
+                      } catch (err) {}
+                    }}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-xs text-slate-400 font-bold focus:outline-none focus:border-blue-600 uppercase"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-200 font-bold focus:outline-none focus:border-blue-600 uppercase tracking-wider cursor-pointer"
                   />
                   {startDate && (
                     <button
                       onClick={() => setStartDate("")}
-                      className="absolute right-3 text-slate-600 hover:text-slate-300 text-[10px] font-black"
+                      className="absolute right-4 text-slate-500 hover:text-slate-300 text-[10px] font-black bg-slate-950 px-1"
                     >
                       CLEAR
                     </button>
@@ -483,20 +493,26 @@ export default function InsightsPage() {
                   Timeline Window (End)
                 </label>
                 <div className="relative flex items-center">
-                  <Calendar
-                    className="absolute left-4 text-slate-600 pointer-events-none"
-                    size={14}
-                  />
                   <input
                     type="date"
                     value={endDate}
+                    onFocus={(e) => {
+                      try {
+                        e.target.showPicker();
+                      } catch (err) {}
+                    }}
+                    onClick={(e) => {
+                      try {
+                        (e.target as HTMLInputElement).showPicker();
+                      } catch (err) {}
+                    }}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3.5 text-xs text-slate-400 font-bold focus:outline-none focus:border-blue-600 uppercase"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-200 font-bold focus:outline-none focus:border-blue-600 uppercase tracking-wider cursor-pointer"
                   />
                   {endDate && (
                     <button
                       onClick={() => setEndDate("")}
-                      className="absolute right-3 text-slate-600 hover:text-slate-300 text-[10px] font-black"
+                      className="absolute right-4 text-slate-500 hover:text-slate-300 text-[10px] font-black bg-slate-950 px-1"
                     >
                       CLEAR
                     </button>
