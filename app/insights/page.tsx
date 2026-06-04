@@ -15,21 +15,26 @@ import {
   Clock,
   Calendar,
   FilterX,
+  Circle,
+  CheckCircle,
+  ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 
 type TimeModeType = "rolling" | "custom";
 type TimeRangeType = "days" | "weeks" | "months" | "quarters" | "years";
+type StatusFilterType = "all" | "open" | "resolved";
 
 export default function InsightsPage() {
-  const { logs, profile, loading } = useTracker();
+  const { logs, profile, loading, toggleWorkedStatus } = useTracker();
 
   // Filter Configuration States
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState<TimeModeType>("rolling");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>("all");
 
   // Rolling Mode States
-  const [timeValue, setTimeValue] = useState<number>(14); // Defaults to your 14-day cycle
+  const [timeValue, setTimeValue] = useState<number>(14);
   const [timeUnit, setTimeUnit] = useState<TimeRangeType>("days");
 
   // Custom Date States
@@ -40,15 +45,19 @@ export default function InsightsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedLogModal, setSelectedLogModal] = useState<any | null>(null);
 
+  // Closeout Reason Sub-Modal States
+  const [reasonModalId, setReasonModalId] = useState<string | null>(null);
+  const [validationReason, setValidationReason] = useState("");
+
   const itemsPerPage = 10;
 
   const isAdmin = profile?.role === "admin";
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
 
-  // Background page scrolling lock when drill-down modal is open
+  // Background page scrolling lock when any modal window is open
   useEffect(() => {
-    if (selectedLogModal) {
+    if (selectedLogModal || reasonModalId) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -56,7 +65,13 @@ export default function InsightsPage() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [selectedLogModal]);
+  }, [selectedLogModal, reasonModalId]);
+
+  // Sync state if modal row receives updates via realtime stream
+  const currentModalData = useMemo(() => {
+    if (!selectedLogModal) return null;
+    return logs.find((l) => l.id === selectedLogModal.id) || selectedLogModal;
+  }, [selectedLogModal, logs]);
 
   // PST Formatting Helper
   const formatPST = (dateString: string | undefined) => {
@@ -72,23 +87,48 @@ export default function InsightsPage() {
     });
   };
 
+  // --- RESOLUTION REASON CODES HANDLER ---
+  const handleConfirmValidation = async () => {
+    if (!reasonModalId) return;
+
+    try {
+      const targetLog = logs.find((l) => l.id === reasonModalId);
+      if (!targetLog) return;
+
+      // Pass task execution up to context handler, bypassing direct client db connections
+      await toggleWorkedStatus(
+        reasonModalId,
+        targetLog.is_worked,
+        validationReason,
+      );
+
+      setReasonModalId(null);
+      setValidationReason("");
+    } catch (err) {
+      console.error("Operational validation fault exception:", err);
+    }
+  };
+
   // --- MULTI-LEVEL FILTERING LOGIC ---
   const filteredLogs = useMemo(() => {
     let data = logs.filter((log) => !log.is_hidden);
 
-    // 1. RBAC Scope Boundary
     if (!isManagement) {
       data = data.filter((log) => log.user_name === profile?.full_name);
     }
 
-    // 2. Live Target Store Filter
+    if (statusFilter === "open") {
+      data = data.filter((log) => !log.is_worked);
+    } else if (statusFilter === "resolved") {
+      data = data.filter((log) => log.is_worked);
+    }
+
     if (searchQuery.trim() !== "") {
       data = data.filter((log) =>
         log.store.toLowerCase().includes(searchQuery.toLowerCase().trim()),
       );
     }
 
-    // 3. Time Filter Application
     if (filterMode === "rolling") {
       if (timeValue && timeValue > 0) {
         const now = new Date();
@@ -114,7 +154,6 @@ export default function InsightsPage() {
         data = data.filter((log) => new Date(log.created_at) >= cutoff);
       }
     } else {
-      // Custom Date Range Processing
       if (startDate) {
         const startBounds = new Date(startDate);
         startBounds.setHours(0, 0, 0, 0);
@@ -134,6 +173,7 @@ export default function InsightsPage() {
     isManagement,
     searchQuery,
     filterMode,
+    statusFilter,
     timeValue,
     timeUnit,
     startDate,
@@ -179,16 +219,21 @@ export default function InsightsPage() {
     return filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
   }, [filteredLogs, indexOfFirstItem, indexOfLastItem]);
 
-  // Reset page position index on search parameters adjustment
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterMode, timeValue, timeUnit, startDate, endDate]);
+  }, [
+    searchQuery,
+    filterMode,
+    statusFilter,
+    timeValue,
+    timeUnit,
+    startDate,
+    endDate,
+  ]);
 
-  // --- CLIENT SIDE SHEETJS COMPILER ---
   const handleExportToExcel = async () => {
     try {
       const XLSX = await import("xlsx");
-
       const cleanExportData = filteredLogs.map((log) => ({
         "Record ID": log.id,
         "Timestamp (PST)": formatPST(log.created_at),
@@ -278,35 +323,73 @@ export default function InsightsPage() {
             <span>Query Configuration Engine</span>
           </div>
 
-          {/* FILTER MODE TOGGLE SWITCHES */}
-          <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setFilterMode("rolling")}
-              className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                filterMode === "rolling"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
-                  : "text-slate-500 hover:text-slate-300"
-              }`}
-            >
-              Rolling Window
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterMode("custom")}
-              className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                filterMode === "custom"
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
-                  : "text-slate-500 hover:text-slate-300"
-              }`}
-            >
-              Custom Dates
-            </button>
+          <div className="flex flex-wrap items-center gap-4">
+            {/* AUDIT STATUS VIEW FILTER */}
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setStatusFilter("all")}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "all"
+                    ? "bg-slate-800 text-white"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                All Logs
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("open")}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "open"
+                    ? "bg-amber-600/20 text-amber-400 border border-amber-500/10"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                Open Gaps
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("resolved")}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  statusFilter === "resolved"
+                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/10"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                Resolved
+              </button>
+            </div>
+
+            {/* FILTER MODE TOGGLE SWITCHES */}
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setFilterMode("rolling")}
+                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  filterMode === "rolling"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                Rolling Window
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterMode("custom")}
+                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  filterMode === "custom"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                Custom Dates
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Store Finder Search Input */}
           <div className="lg:col-span-5 relative flex flex-col justify-end">
             <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
               Store Account Filter
@@ -334,10 +417,8 @@ export default function InsightsPage() {
             </div>
           </div>
 
-          {/* DYNAMIC RENDERING INTERCHANGEABLE CONTROLS */}
           {filterMode === "rolling" ? (
             <>
-              {/* Rolling Interval Value Input */}
               <div className="lg:col-span-3 flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
                   Accumulation Magnitude
@@ -352,7 +433,6 @@ export default function InsightsPage() {
                 />
               </div>
 
-              {/* Timeframe Incremental Unit Selector */}
               <div className="lg:col-span-4 flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
                   Rolling Scale Unit
@@ -372,7 +452,6 @@ export default function InsightsPage() {
             </>
           ) : (
             <>
-              {/* Custom Date Range Picker Fields */}
               <div className="lg:col-span-3 relative flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
                   Timeline Window (Start)
@@ -429,7 +508,7 @@ export default function InsightsPage() {
         </div>
       </div>
 
-      {/* --- STORE VELOCITY INDEX (INTERACTIVE ROW SELECTION) --- */}
+      {/* --- STORE VELOCITY INDEX --- */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
           <div className="flex items-center gap-2">
@@ -441,7 +520,7 @@ export default function InsightsPage() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="flex items-center gap-1.5 px-3 py-1 bg-slate-950 border border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-950 border border-slate-800 text-slate-400 hover:text-red-400 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
             >
               <FilterX size={12} />
               Reset Active Filter
@@ -461,7 +540,7 @@ export default function InsightsPage() {
                 }`}
               >
                 <div className="flex items-center gap-4">
-                  <span className="text-xs font-black text-slate-600 w-6">
+                  <span className="text-xs font-black text-slate-600 w-6 font-mono">
                     #{idx + 1}
                   </span>
                   <div>
@@ -475,11 +554,7 @@ export default function InsightsPage() {
                   </div>
                 </div>
                 <div
-                  className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all ${
-                    store.total > 5
-                      ? "bg-red-500/10 text-red-400 border-red-500/20 shadow-lg shadow-red-500/5"
-                      : "bg-slate-950 text-slate-400 border-slate-800 group-hover:border-slate-600"
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all ${store.total > 5 ? "bg-red-500/10 text-red-400 border-red-500/20 shadow-lg" : "bg-slate-950 text-slate-400 border-slate-800"}`}
                 >
                   {store.total} Total Logs
                 </div>
@@ -506,7 +581,6 @@ export default function InsightsPage() {
             </span>
           </div>
 
-          {/* Table Feed Pagination Navigation controls */}
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
@@ -515,7 +589,7 @@ export default function InsightsPage() {
             >
               <ChevronLeft size={14} />
             </button>
-            <span className="text-[10px] font-black text-slate-500 px-2 min-w-10 text-center">
+            <span className="text-[10px] font-black text-slate-500 px-2 min-w-10 text-center font-mono">
               {currentPage}/{totalPages || 1}
             </span>
             <button
@@ -528,11 +602,13 @@ export default function InsightsPage() {
           </div>
         </div>
 
-        {/* FEED GRID MATRIX ELEMENT */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-950/40 border-b border-slate-800">
+                <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest w-12 text-center">
+                  Status
+                </th>
                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
                   Timestamp
                 </th>
@@ -555,6 +631,19 @@ export default function InsightsPage() {
                     onClick={() => setSelectedLogModal(log)}
                     className="hover:bg-slate-950/30 transition-colors cursor-pointer group"
                   >
+                    <td className="p-4 text-center">
+                      {log.is_worked ? (
+                        <CheckCircle
+                          size={16}
+                          className="text-emerald-500 mx-auto"
+                        />
+                      ) : (
+                        <Circle
+                          size={16}
+                          className="text-slate-700 mx-auto group-hover:text-amber-500/50 transition-colors"
+                        />
+                      )}
+                    </td>
                     <td className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
                       {formatPST(log.created_at)} PST
                     </td>
@@ -585,7 +674,7 @@ export default function InsightsPage() {
               ) : (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="p-20 text-center text-xs font-black text-slate-600 uppercase tracking-widest"
                   >
                     No matching records discovered inside current rolling window
@@ -599,7 +688,7 @@ export default function InsightsPage() {
       </div>
 
       {/* DRILL DOWN LOG ENTRY MODAL SCREEN */}
-      {selectedLogModal && (
+      {currentModalData && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-md"
@@ -611,7 +700,7 @@ export default function InsightsPage() {
                 <h2 className="text-xl font-black text-slate-100 uppercase italic tracking-tighter">
                   Store{" "}
                   <span className="text-blue-500">
-                    {selectedLogModal.store}
+                    {currentModalData.store}
                   </span>
                 </h2>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -627,43 +716,147 @@ export default function InsightsPage() {
             </header>
 
             <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar text-xs">
-              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-                <div className="flex justify-between items-start">
+              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-4">
+                <div className="flex justify-between items-center">
                   <div className="flex flex-col space-y-1">
-                    <span className="text-slate-400 font-bold uppercase text-[10px]">
+                    <span className="text-slate-500 block font-black uppercase text-[8px]">
                       Product Name
                     </span>
                     <span className="text-sm font-black text-slate-200 uppercase">
-                      {selectedLogModal.brand} {selectedLogModal.pack_type}
+                      {currentModalData.brand} {currentModalData.pack_type}
                     </span>
                   </div>
+
+                  {isManagement && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (currentModalData.is_worked) {
+                          toggleWorkedStatus(currentModalData.id, true);
+                        } else {
+                          setReasonModalId(currentModalData.id);
+                        }
+                      }}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
+                        currentModalData.is_worked
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                          : "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:border-amber-400 hover:bg-amber-500/20"
+                      }`}
+                    >
+                      {currentModalData.is_worked
+                        ? "✓ Open Issue"
+                        : "Validate & Close"}
+                    </button>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-900">
+                <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-900">
                   <div>
                     <span className="text-slate-500 block font-black uppercase text-[8px]">
                       Logged Timestamp
                     </span>
                     <span className="font-bold text-slate-300">
-                      {formatPST(selectedLogModal.created_at)} PST
+                      {formatPST(currentModalData.created_at)} PST
                     </span>
                   </div>
                   <div>
                     <span className="text-slate-500 block font-black uppercase text-[8px]">
-                      Merchandiser
+                      Status Rank
                     </span>
-                    <span className="font-bold text-slate-300">
-                      {selectedLogModal.user_name || "Field Agent"}
+                    <span
+                      className={`font-black uppercase text-[10px] ${currentModalData.is_worked ? "text-emerald-400" : "text-amber-400"}`}
+                    >
+                      {currentModalData.is_worked ? "Resolved" : "Active Gap"}
                     </span>
                   </div>
                 </div>
 
-                {selectedLogModal.notes && (
-                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 italic text-slate-400 leading-relaxed">
-                    "{selectedLogModal.notes}"
+                <div className="grid grid-cols-1 gap-1 pt-2 border-t border-slate-900/50">
+                  <span className="text-slate-500 block font-black uppercase text-[8px]">
+                    Merchandiser
+                  </span>
+                  <span className="font-bold text-slate-300 uppercase">
+                    {currentModalData.user_name || "Field Agent"}
+                  </span>
+                </div>
+
+                {currentModalData.notes && (
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 italic text-slate-400 leading-relaxed space-y-1">
+                    <span className="text-slate-500 block font-black uppercase text-[7px] not-italic">
+                      Observations Feed
+                    </span>
+                    <p>"{currentModalData.notes}"</p>
+                  </div>
+                )}
+
+                {currentModalData.is_worked && currentModalData.updated_by && (
+                  <div className="p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-xl text-[10px] font-bold text-slate-400 space-y-1">
+                    <p className="uppercase text-emerald-400 tracking-wider font-black text-[8px]">
+                      Operational Closeout Signature
+                    </p>
+                    <p>
+                      Validated By:{" "}
+                      <span className="text-slate-200 uppercase">
+                        {currentModalData.updated_by}
+                      </span>
+                    </p>
+                    {currentModalData.updated_at && (
+                      <p className="text-[9px] text-slate-500">
+                        Timestamp: {formatPST(currentModalData.updated_at)} PST
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CLOSURE REASON INTERCEPT SUB-MODAL Window --- */}
+      {reasonModalId && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => {
+              setReasonModalId(null);
+              setValidationReason("");
+            }}
+          />
+          <div className="relative bg-slate-900 border border-slate-800 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6 animate-in zoom-in-95 duration-150">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-blue-500 text-[10px] font-black uppercase tracking-widest">
+                <ClipboardCheck size={12} /> Reason Input Required
+              </div>
+              <h3 className="text-xl font-black text-white uppercase italic tracking-tight">
+                Validate & Close
+              </h3>
+            </div>
+            <textarea
+              autoFocus
+              value={validationReason}
+              onChange={(e) => setValidationReason(e.target.value)}
+              placeholder="Enter specific resolution actions (e.g., Backstock packed out, order quantity adjusted)..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-200 focus:outline-none focus:border-blue-600 min-h-[100px] resize-none font-bold placeholder:text-slate-600"
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setReasonModalId(null);
+                  setValidationReason("");
+                }}
+                className="flex-1 py-3 bg-slate-950 text-slate-500 text-[10px] font-black uppercase rounded-xl border border-slate-800 transition-all cursor-pointer hover:text-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmValidation}
+                className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl shadow-lg shadow-blue-600/20 transition-all cursor-pointer hover:brightness-110 active:scale-[0.98]"
+              >
+                Confirm Close
+              </button>
             </div>
           </div>
         </div>

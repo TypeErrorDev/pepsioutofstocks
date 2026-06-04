@@ -8,15 +8,10 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "@/lib/supabase";
-import { User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 
 // --- STRICT SYSTEM TYPES ---
-export type UserRole =
-  | "admin"
-  | "team_lead"
-  | "sales_rep"
-  | "merchandiser"
-  | "user";
+export type UserRole = "admin" | "team_lead" | "sales_rep" | "user";
 
 export interface Profile {
   id: string;
@@ -30,13 +25,10 @@ export interface Profile {
 export interface StockoutLog {
   id: string;
   store: string;
-  location: string;
-  brand?: string;
+  brand: string;
   pack_type: string;
-  product?: string;
   root_cause: string;
   notes: string | null;
-  gpid: string | null;
   is_worked: boolean;
   is_hidden: boolean;
   user_name: string;
@@ -63,17 +55,13 @@ interface TrackerContextType {
       | "updated_by"
     >,
   ) => Promise<{ success: boolean }>;
-  toggleWorkedStatus: (id: string, currentStatus: boolean) => Promise<void>;
-  hideLog: (id: string, reason: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (
-    email: string,
-    password: string,
-    full_name: string,
-    gpid: string,
-    role: UserRole,
+  toggleWorkedStatus: (
+    id: string,
+    currentStatus: boolean,
+    reason?: string,
   ) => Promise<void>;
+  hideLog: (id: string, reason: string) => Promise<void>;
+  supabase: typeof supabase;
 }
 
 const TrackerContext = createContext<TrackerContextType | undefined>(undefined);
@@ -107,13 +95,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      if (data)
-        setLogs(
-          (data as any[]).map((log) => ({
-            ...log,
-            brand: log.brand ?? log.product ?? "",
-          })) as StockoutLog[],
-        );
+      if (data) setLogs(data as StockoutLog[]);
     } catch (e) {
       console.error("Logs database fetching exception:", e);
     }
@@ -123,7 +105,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
-    // Initialize our primary Postgres change listener pipeline
     let channel = supabase
       .channel("realtime_logs")
       .on(
@@ -136,23 +117,19 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
     channel.subscribe();
 
-    // Fix for Mobile Device Wake/Unlock Event Dropouts
     const handleVisibilityChange = async () => {
       if (document.visibilityState === "visible") {
         console.log(
           "Device focus restored. Re-authenticating database websocket pipe...",
         );
 
-        // 1. Force state machine sync with network boundary
         const {
           data: { session },
         } = await supabase.auth.getSession();
 
         if (session) {
-          // 2. Fetch trailing records missed while phone screen was locked
           fetchLogs();
 
-          // 3. Purge broken sockets and spin up a resilient fresh channel
           supabase.removeChannel(channel);
           channel = supabase
             .channel("realtime_logs")
@@ -190,7 +167,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Auth security engine initialization failure:", error);
       } finally {
-        setLoading(false);
+        loading && setLoading(false);
       }
     };
     initializeAuth();
@@ -213,7 +190,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   // --- INTERACTIVE OPERATIONS METHODS (WITH HARD TIMEOUT GUARDS) ---
   const addLog = async (logData: any) => {
-    // 8-Second Circuit Breaker: Prevents UI from hanging infinitely on dead store arrays
     const networkTimeout = new Promise((_, reject) =>
       setTimeout(
         () => reject(new Error("Database write transaction timeout")),
@@ -231,7 +207,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         },
       ]);
 
-      // Race database execution task against our local network timer guard
       const { error } = (await Promise.race([
         dbInsertTask,
         networkTimeout,
@@ -242,23 +217,32 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       return { success: true };
     } catch (error: any) {
       console.error("Critical submission disruption:", error);
-      // Re-verify network credentials locally on execution faults
       await supabase.auth.getSession();
-      const message =
-        error?.message ||
-        error?.details ||
-        error?.msg ||
-        "Database write transaction failed.";
-      throw new Error(message);
+      throw error;
     }
   };
 
-  const toggleWorkedStatus = async (id: string, currentStatus: boolean) => {
+  const toggleWorkedStatus = async (
+    id: string,
+    currentStatus: boolean,
+    reason?: string,
+  ) => {
     try {
+      const targetLog = logs.find((l) => l.id === id);
+      let updatedNotes = targetLog?.notes || "";
+
+      // Append reason context note securely if provided on resolve transitions
+      if (!currentStatus && reason && reason.trim() !== "") {
+        updatedNotes = updatedNotes
+          ? `${updatedNotes} [Resolution Note: ${reason.trim()}]`
+          : `[Resolution Note: ${reason.trim()}]`;
+      }
+
       const { error } = await supabase
         .from("logs")
         .update({
           is_worked: !currentStatus,
+          notes: updatedNotes,
           updated_by: profile?.full_name || "System Validator",
           updated_at: new Date().toISOString(),
         })
@@ -292,62 +276,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-    if (data.user) {
-      setUser(data.user);
-      await Promise.all([fetchProfile(data.user.id), fetchLogs()]);
-    }
-  };
-
-  const signUp = async (
-    email: string,
-    password: string,
-    full_name: string,
-    gpid: string,
-    role: UserRole,
-  ) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-
-    if (data.user) {
-      const { error: profileError } = await supabase.from("profiles").insert([
-        {
-          id: data.user.id,
-          username: email.split("@")[0],
-          full_name,
-          gpid,
-          role,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (profileError) throw profileError;
-      setUser(data.user);
-      await Promise.all([fetchProfile(data.user.id), fetchLogs()]);
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
-      setLogs([]);
-    } catch (error) {
-      console.error("Sign out failed:", error);
-    }
-  };
-
   return (
     <TrackerContext.Provider
       value={{
@@ -359,9 +287,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         addLog,
         toggleWorkedStatus,
         hideLog,
-        signOut,
-        signIn,
-        signUp,
+        supabase,
       }}
     >
       {children}
