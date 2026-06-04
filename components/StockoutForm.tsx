@@ -92,8 +92,10 @@ export default function StockoutForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!type || !location) {
-      alert("Please select both a Pack Type and a Store Location");
+    if (!brand.trim() || !store.trim() || !type || !location) {
+      alert(
+        "Please complete Brand / SKU, Pack Type, Store Identity, and Store Location before submitting.",
+      );
       return;
     }
 
@@ -101,7 +103,7 @@ export default function StockoutForm() {
     setShowSuggestions(false);
     try {
       await addLog({
-        brand: brand.trim(),
+        product: brand.trim(),
         pack_type: type,
         store: store,
         location,
@@ -116,11 +118,18 @@ export default function StockoutForm() {
       // Reset fields for the next entry
       setBrand("");
       setNotes("");
-      setCause("Item In Backstock");
+      setCause("Ordering Error");
     } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object"
+            ? JSON.stringify(err)
+            : String(err);
+
       console.error("Log tracking transaction failed:", err);
       alert(
-        "Connection timeout occurred. Please ensure you have service bars and try submitting again.",
+        `Submission failed: ${message}. Please check the console or network tab for details.`,
       );
     } finally {
       setIsSubmitting(false);

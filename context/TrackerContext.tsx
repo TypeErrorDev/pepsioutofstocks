@@ -31,8 +31,9 @@ export interface StockoutLog {
   id: string;
   store: string;
   location: string;
-  brand: string;
+  brand?: string;
   pack_type: string;
+  product?: string;
   root_cause: string;
   notes: string | null;
   gpid: string | null;
@@ -106,7 +107,13 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      if (data) setLogs(data as StockoutLog[]);
+      if (data)
+        setLogs(
+          (data as any[]).map((log) => ({
+            ...log,
+            brand: log.brand ?? log.product ?? "",
+          })) as StockoutLog[],
+        );
     } catch (e) {
       console.error("Logs database fetching exception:", e);
     }
@@ -237,7 +244,12 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       console.error("Critical submission disruption:", error);
       // Re-verify network credentials locally on execution faults
       await supabase.auth.getSession();
-      throw error;
+      const message =
+        error?.message ||
+        error?.details ||
+        error?.msg ||
+        "Database write transaction failed.";
+      throw new Error(message);
     }
   };
 
