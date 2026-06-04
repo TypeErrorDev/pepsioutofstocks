@@ -215,7 +215,7 @@ export default function InsightsPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="FILTER SEARCH BY STORE NUMBER (E.G. 5406)..."
+              placeholder="FILTER BY STORE NUMBER (IE: 5406)..."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-10 py-3.5 text-xs text-slate-200 font-bold placeholder-slate-600 focus:outline-none focus:border-blue-600 tracking-wider uppercase"
             />
             {searchQuery && (
