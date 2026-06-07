@@ -8,10 +8,8 @@ import {
   Circle,
   ChevronLeft,
   ChevronRight,
-  Plus,
   ClipboardCheck,
   Search,
-  FilterX,
 } from "lucide-react";
 
 export default function LogTable() {
@@ -21,11 +19,12 @@ export default function LogTable() {
   const [reasonModalId, setReasonModalId] = useState<string | null>(null);
   const [validationReason, setValidationReason] = useState("");
 
-  // New State: Live store filter for current location matching
+  // Live store input filter state
   const [currentStoreInput, setCurrentStoreInput] = useState("");
 
   const itemsPerPage = 10;
 
+  // --- SCROLL LOCK BOUNDARY ---
   useEffect(() => {
     if (selectedStore || reasonModalId) {
       document.body.style.overflow = "hidden";
@@ -37,7 +36,7 @@ export default function LogTable() {
     };
   }, [selectedStore, reasonModalId]);
 
-  // Reset pagination index if user filters by a specific store location
+  // Reset pagination index to page 1 whenever the query changes
   useEffect(() => {
     setCurrentPage(1);
   }, [currentStoreInput]);
@@ -50,24 +49,30 @@ export default function LogTable() {
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
 
-  // 1. Filter by User Role Scope Boundary
-  const roleFilteredLogs = useMemo(() => {
-    return isManagement
-      ? activeLogs
-      : activeLogs.filter((log) => log.user_name === profile?.full_name);
-  }, [activeLogs, isManagement, profile]);
-
-  // 2. Filter by Current Store Focus Input Element
+  // --- HYBRID ROUTE FILTERING SYSTEM ---
   const finalFilteredLogs = useMemo(() => {
-    if (!currentStoreInput.trim()) return roleFilteredLogs;
-    return roleFilteredLogs.filter((log) =>
-      log.store
-        .toString()
-        .toLowerCase()
-        .includes(currentStoreInput.trim().toLowerCase()),
-    );
-  }, [roleFilteredLogs, currentStoreInput]);
+    // Isolate basic unhidden logs
+    let data = activeLogs;
 
+    // SCENARIO A: A store search query is active -> Open the gates to see ALL matching rows
+    if (currentStoreInput.trim() !== "") {
+      return data.filter((log) =>
+        log.store
+          .toString()
+          .toLowerCase()
+          .includes(currentStoreInput.trim().toLowerCase()),
+      );
+    }
+
+    // SCENARIO B: No store search query -> Enforce default user ownership constraints
+    if (!isManagement) {
+      data = data.filter((log) => log.user_name === profile?.full_name);
+    }
+
+    return data;
+  }, [activeLogs, isManagement, profile, currentStoreInput]);
+
+  // --- PAGINATION MATHEMATICS ---
   const totalPages = Math.ceil(finalFilteredLogs.length / itemsPerPage);
   const currentLogs = useMemo(() => {
     return finalFilteredLogs.slice(
@@ -88,6 +93,7 @@ export default function LogTable() {
     });
   };
 
+  // Dedicated detail drawer compilation matching the active query state
   const modalData = useMemo(() => {
     if (!selectedStore) return null;
     return activeLogs.filter((l) => l.store === selectedStore);
@@ -132,7 +138,7 @@ export default function LogTable() {
 
   return (
     <div className="flex flex-col h-full bg-app-card transition-colors">
-      {/* HEADER SECTION CONTROLS */}
+      {/* HEADER CONTROLS BAR */}
       <div className="p-5 border-b border-app-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-app-card/50">
         <div className="flex flex-col">
           <h3 className="text-xs font-black text-app-text uppercase italic tracking-widest leading-none mb-1">
@@ -143,7 +149,7 @@ export default function LogTable() {
           </span>
         </div>
 
-        {/* CURRENT LOCATION SEARCH BAR ELEMENT */}
+        {/* CURRENT LOCATION SEARCH FILTER BAR */}
         <div className="w-full sm:w-64 relative">
           <Search
             className="absolute left-3 top-2.5 text-slate-600"
@@ -166,7 +172,7 @@ export default function LogTable() {
           )}
         </div>
 
-        {/* PAGINATION CONTROLS */}
+        {/* FEED TABLE PAGINATION FOOTPRINT */}
         <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border self-end sm:self-auto">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
@@ -188,7 +194,7 @@ export default function LogTable() {
         </div>
       </div>
 
-      {/* FEED LIST GRID MATRIX */}
+      {/* FEED DATA MATRIX OVERVIEW */}
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -281,7 +287,9 @@ export default function LogTable() {
                   colSpan={5}
                   className="p-20 text-center text-xs font-black text-slate-600 uppercase tracking-widest"
                 >
-                  No active gaps registered for Store focus query criteria.
+                  You have not logged any gaps yet. Use the form to the left to
+                  add <br />
+                  your first out of stock record and start tracking your stores!
                 </td>
               </tr>
             )}
@@ -289,7 +297,7 @@ export default function LogTable() {
         </table>
       </div>
 
-      {/* Main Detail Modal */}
+      {/* Main Location Gaps Breakdown Drawer */}
       {selectedStore && modalData && (
         <div className="fixed inset-0 z-999 flex items-center justify-center p-4">
           <div
@@ -329,6 +337,9 @@ export default function LogTable() {
                       <span className="text-[9px] text-app-muted font-bold uppercase mt-1">
                         Streak: {log.verification_count || 1} Days Out of Stock
                       </span>
+                      <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tight mt-0.5">
+                        Logged By: {log.user_name}
+                      </span>
                     </div>
                     {!log.is_worked && (
                       <button
@@ -346,7 +357,7 @@ export default function LogTable() {
         </div>
       )}
 
-      {/* REASON CLOSEOUT POPUP SHEET */}
+      {/* VERIFICATION NOTES INPUT WINDOW */}
       {reasonModalId && (
         <div className="fixed inset-0 z-1000 flex items-center justify-center p-4">
           <div

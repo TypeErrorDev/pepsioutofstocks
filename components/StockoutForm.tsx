@@ -6,12 +6,10 @@ import {
   MapPin,
   AlertCircle,
   MessageSquare,
-  X,
   CheckCircle2,
   ChevronRight,
   Layers,
   Megaphone,
-  Sparkles,
 } from "lucide-react";
 
 const PACK_TYPES = [
@@ -65,11 +63,12 @@ export default function StockoutForm() {
   const canWriteAlerts =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
 
-  // Filter alerts matching whatever store number is typed in live
+  // Filter alerts matching whatever store number is typed in live with absolute null-safety guards
   const matchingActiveAlerts = useMemo(() => {
-    if (!store.trim()) return [];
+    if (!store.trim() || !salesAlerts) return [];
     return salesAlerts.filter(
-      (a) => a.store.toString().trim() === store.toString().trim(),
+      (a) =>
+        a && a.store && a.store.toString().trim() === store.toString().trim(),
     );
   }, [store, salesAlerts]);
 
