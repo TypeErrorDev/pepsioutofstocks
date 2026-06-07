@@ -34,6 +34,7 @@ export interface StockoutLog {
   location: string;
   root_cause: string;
   notes: string | null;
+  gpid: string | null;
   is_worked: boolean;
   is_hidden: boolean;
   user_name: string;
