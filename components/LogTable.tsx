@@ -104,7 +104,7 @@ export default function LogTable() {
     try {
       await addLog({
         store: log.store,
-        brand: log.brand,
+        product: log.product,
         pack_type: log.pack_type,
         location: log.location || "Main Shelf",
         root_cause: log.root_cause,
@@ -238,7 +238,7 @@ export default function LogTable() {
                     )}
                   </td>
                   <td className="p-4 font-black text-xs uppercase text-app-text">
-                    {log.brand}{" "}
+                    {log.product}{" "}
                     <span className="text-app-muted font-bold ml-1">
                       {log.pack_type}
                     </span>
@@ -332,7 +332,7 @@ export default function LogTable() {
                   <div className="flex justify-between items-center">
                     <div className="flex flex-col">
                       <span className="text-xs font-black text-app-text uppercase">
-                        {log.brand} {log.pack_type}
+                        {log.product} {log.pack_type}
                       </span>
                       <span className="text-[9px] text-app-muted font-bold uppercase mt-1">
                         Streak: {log.verification_count || 1} Days Out of Stock

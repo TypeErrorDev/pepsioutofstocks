@@ -29,7 +29,7 @@ export interface Profile {
 export interface StockoutLog {
   id: string;
   store: string;
-  brand: string;
+  product: string;
   pack_type: string;
   location: string;
   root_cause: string;
@@ -50,6 +50,10 @@ export interface SalesAlert {
   store: string;
   alert_text: string;
   author_name: string;
+  status: "open" | "closed";
+  resolution_text?: string | null;
+  resolved_by?: string | null;
+  resolved_at?: string | null;
   created_at: string;
 }
 
@@ -70,6 +74,11 @@ interface TrackerContextType {
   signOut: () => Promise<void>;
   salesAlerts: SalesAlert[];
   addSalesAlert: (store: string, alertText: string) => Promise<void>;
+  resolveSalesAlert: (
+    alertId: string,
+    resolutionText: string,
+    close: boolean,
+  ) => Promise<void>;
   addLog: (
     logData: Omit<
       StockoutLog,
@@ -206,6 +215,24 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     return () => authListener.subscription.unsubscribe();
   }, [fetchLogs, fetchSalesAlerts]);
 
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("realtime_sales_alerts")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sales_alerts" },
+        () => {
+          fetchSalesAlerts();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchSalesAlerts]);
+
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -299,6 +326,43 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resolveSalesAlert = async (
+    alertId: string,
+    resolutionText: string,
+    close: boolean,
+  ) => {
+    try {
+      const updatePayload: Record<string, unknown> = {
+        resolution_text: resolutionText || null,
+      };
+
+      if (close) {
+        updatePayload.status = "closed";
+        updatePayload.resolved_by = profile?.full_name || "Unknown Rep";
+        updatePayload.resolved_at = new Date().toISOString();
+      }
+
+      const { data, error } = await supabase
+        .from("sales_alerts")
+        .update(updatePayload)
+        .eq("id", alertId)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setSalesAlerts((current) =>
+          (current || []).map((alert) =>
+            alert.id === alertId ? (data as SalesAlert) : alert,
+          ),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update sales alert:", error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -322,7 +386,8 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
           !l.is_worked &&
           !l.is_hidden &&
           l.store.toString().trim() === logData.store.toString().trim() &&
-          l.brand.toLowerCase().trim() === logData.brand.toLowerCase().trim() &&
+          l.product.toLowerCase().trim() ===
+            logData.product.toLowerCase().trim() &&
           l.pack_type.toLowerCase().trim() ===
             logData.pack_type.toLowerCase().trim(),
       );
@@ -347,7 +412,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         return { success: true, duplicated: true };
       }
 
-      // 3. Brand New Gap: Write baseline database transaction record
+      // 3. Product New Gap: Write baseline database transaction record
       const { error } = await supabase.from("logs").insert([
         {
           ...logData,
@@ -363,8 +428,14 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       await fetchLogs();
       return { success: true, duplicated: false };
     } catch (error) {
-      console.error("Critical submission fault:", error);
-      throw error;
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : error && typeof error === "object"
+            ? JSON.stringify(error, Object.getOwnPropertyNames(error))
+            : String(error);
+      console.error("Critical submission fault:", errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
@@ -434,6 +505,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         addSalesAlert,
+        resolveSalesAlert,
         addLog,
         toggleWorkedStatus,
         hideLog,

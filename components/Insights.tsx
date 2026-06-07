@@ -24,8 +24,8 @@ export default function Insights() {
 
   const analytics = useMemo(() => {
     if (!logs || logs.length === 0) return null;
-    const storeMap: Record<string, any> = {};
-    const brandMap: Record<string, number> = {};
+    // Product Aggregation
+    const productMap: Record<string, number> = {};
 
     logs.forEach((l) => {
       // Store Aggregation
@@ -36,12 +36,12 @@ export default function Insights() {
         ? storeMap[l.store].gaps++
         : storeMap[l.store].stockouts++;
 
-      // Brand Aggregation
-      const brand = l.brand ?? "Unknown";
-      brandMap[brand] = (brandMap[brand] || 0) + 1;
+      // Product Aggregation
+      const product = l.product ?? "Unknown";
+      productMap[product] = (productMap[product] || 0) + 1;
     });
 
-    const chartData = Object.entries(brandMap)
+    const chartData = Object.entries(productMap)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
@@ -86,7 +86,7 @@ export default function Insights() {
         {/* Chart Section */}
         <div className="bg-app-card border border-app-border p-6 rounded-[2.5rem] shadow-xl">
           <p className="text-[10px] font-black text-app-muted uppercase tracking-[0.2em] mb-6 ml-2">
-            Top At-Risk Brands
+            Top At-Risk Products
           </p>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">

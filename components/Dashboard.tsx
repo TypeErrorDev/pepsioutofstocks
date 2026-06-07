@@ -16,6 +16,9 @@ import LogTable from "./LogTable";
 export default function Dashboard() {
   const { profile, logs } = useTracker();
 
+  const canViewInsights =
+    profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
+
   // Logic: Only count logs that are NOT hidden
   const activeLogs = logs.filter((l) => !l.is_hidden);
 
@@ -46,22 +49,24 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <Link
-          href="/insights"
-          className="group flex items-center gap-3 bg-app-card border border-app-border px-6 py-4 rounded-2xl hover:border-pepsi-blue transition-all duration-300 shadow-lg"
-        >
-          <div className="p-2 bg-app-bg rounded-xl group-hover:text-pepsi-blue transition-colors">
-            <TrendingUp size={20} />
-          </div>
-          <div className="text-left">
-            <p className="text-[10px] font-black text-app-muted uppercase mb-1">
-              Market Analysis
-            </p>
-            <p className="text-sm font-black text-app-text uppercase italic">
-              Insights
-            </p>
-          </div>
-        </Link>
+        {canViewInsights && (
+          <Link
+            href="/insights"
+            className="group flex items-center gap-3 bg-app-card border border-app-border px-6 py-4 rounded-2xl hover:border-pepsi-blue transition-all duration-300 shadow-lg"
+          >
+            <div className="p-2 bg-app-bg rounded-xl group-hover:text-pepsi-blue transition-colors">
+              <TrendingUp size={20} />
+            </div>
+            <div className="text-left">
+              <p className="text-[10px] font-black text-app-muted uppercase mb-1">
+                Market Analysis
+              </p>
+              <p className="text-sm font-black text-app-text uppercase italic">
+                Insights
+              </p>
+            </div>
+          </Link>
+        )}
       </header>
 
       {/* --- STATS GRID --- */}

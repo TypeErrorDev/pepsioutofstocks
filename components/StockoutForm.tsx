@@ -36,13 +36,20 @@ const ROOT_CAUSES = [
 ];
 
 export default function StockoutForm() {
-  const { addLog, addSalesAlert, salesAlerts, profile, logs } = useTracker();
+  const {
+    addLog,
+    addSalesAlert,
+    resolveSalesAlert,
+    salesAlerts,
+    profile,
+    logs,
+  } = useTracker();
 
   // Mode state: 'gap' for logging standard out-of-stock items, 'alert' for creating rep notices
   const [activeFormMode, setActiveFormMode] = useState<"gap" | "alert">("gap");
 
   // Standard Form States
-  const [brand, setBrand] = useState("");
+  const [product, setProduct] = useState("");
   const [type, setType] = useState("");
   const [store, setStore] = useState("");
   const [location, setLocation] = useState("");
@@ -51,6 +58,12 @@ export default function StockoutForm() {
 
   // Sales Alert Text Input State
   const [alertText, setAlertText] = useState("");
+  const [alertError, setAlertError] = useState<string | null>(null);
+  const [activeAlertActionId, setActiveAlertActionId] = useState<string | null>(
+    null,
+  );
+  const [alertResolutionText, setAlertResolutionText] = useState("");
+  const [isAlertActionSubmitting, setIsAlertActionSubmitting] = useState(false);
 
   // UI Status Flash Overlays
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,27 +81,30 @@ export default function StockoutForm() {
     if (!store.trim() || !salesAlerts) return [];
     return salesAlerts.filter(
       (a) =>
-        a && a.store && a.store.toString().trim() === store.toString().trim(),
+        a &&
+        a.store &&
+        a.store.toString().trim() === store.toString().trim() &&
+        a.status?.toLowerCase() !== "closed",
     );
   }, [store, salesAlerts]);
 
-  const distinctBrands = useMemo(() => {
+  const distinctProducts = useMemo(() => {
     if (!logs) return [];
     const unique = new Set<string>();
     logs.forEach((log) => {
-      if (log.brand) unique.add(log.brand.trim());
+      if (log.product) unique.add(log.product.trim());
     });
     return Array.from(unique).sort();
   }, [logs]);
 
   const filteredSuggestions = useMemo(() => {
-    if (!brand.trim()) return [];
-    return distinctBrands.filter(
+    if (!product.trim()) return [];
+    return distinctProducts.filter(
       (item) =>
-        item.toLowerCase().includes(brand.toLowerCase()) &&
-        item.toLowerCase() !== brand.toLowerCase(),
+        item.toLowerCase().includes(product.toLowerCase()) &&
+        item.toLowerCase() !== product.toLowerCase(),
     );
-  }, [brand, distinctBrands]);
+  }, [product, distinctProducts]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -107,15 +123,26 @@ export default function StockoutForm() {
     e.preventDefault();
 
     if (activeFormMode === "alert") {
-      if (!store.trim() || !alertText.trim()) return;
+      if (!store.trim() || !alertText.trim()) {
+        setAlertError("Store and broadcast message are required.");
+        return;
+      }
+      setAlertError(null);
       setIsSubmitting(true);
       try {
-        await addSalesAlert(store, alertText);
+        await addSalesAlert(store.trim(), alertText.trim());
         setAlertText("");
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
       } catch (err) {
         console.error(err);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : err && typeof err === "object"
+              ? JSON.stringify(err)
+              : String(err);
+        setAlertError(errorMessage);
       } finally {
         setIsSubmitting(false);
       }
@@ -123,11 +150,11 @@ export default function StockoutForm() {
     }
 
     // Handle gap logging form submission
-    if (!brand.trim() || !store.trim() || !type || !location) return;
+    if (!product.trim() || !store.trim() || !type || !location) return;
     setIsSubmitting(true);
     try {
       const result = await addLog({
-        brand: brand.trim(),
+        product: product.trim(),
         pack_type: type,
         store: store.trim(),
         location,
@@ -144,12 +171,36 @@ export default function StockoutForm() {
         setTimeout(() => setShowSuccess(false), 2200);
       }
 
-      setBrand("");
+      setProduct("");
       setNotes("");
     } catch (err) {
       console.error(err);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAlertAction = async (alertId: string, close: boolean) => {
+    if (!alertId) return;
+    setAlertError(null);
+    setIsAlertActionSubmitting(true);
+    try {
+      await resolveSalesAlert(alertId, alertResolutionText.trim(), close);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+      setActiveAlertActionId(null);
+      setAlertResolutionText("");
+    } catch (err) {
+      console.error(err);
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object"
+            ? JSON.stringify(err)
+            : String(err);
+      setAlertError(errorMessage);
+    } finally {
+      setIsAlertActionSubmitting(false);
     }
   };
 
@@ -198,6 +249,14 @@ export default function StockoutForm() {
                 key={alert.id}
                 className="text-[11px] text-slate-300 font-medium leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-900"
               >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">
+                    Store {alert.store}
+                  </span>
+                  <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">
+                    Broadcast Alert
+                  </span>
+                </div>
                 <p>"{alert.alert_text}"</p>
                 <span className="text-[8px] font-black uppercase text-slate-500 block mt-1.5">
                   Author: {alert.author_name}
@@ -246,14 +305,30 @@ export default function StockoutForm() {
               required
             />
           </div>
+          {store.trim() && activeFormMode === "alert" && (
+            <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.3em] text-slate-400 mt-1">
+              <span className="font-black text-slate-200">
+                Broadcast target: {store.trim()}
+              </span>
+              {matchingActiveAlerts.length > 0 ? (
+                <span className="text-amber-300 font-black">
+                  Active alert exists for this store
+                </span>
+              ) : (
+                <span className="text-slate-500">
+                  No existing alert for this store yet
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {activeFormMode === "gap" ? (
           <div className="space-y-5">
-            {/* BRAND SELECTION WITH AUTOCOMPLETE */}
+            {/* PRODUCT SELECTION WITH AUTOCOMPLETE */}
             <div className="space-y-1 relative" ref={autocompleteRef}>
               <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-                Brand / SKU
+                Product / SKU
               </label>
               <div className="relative">
                 <Package
@@ -264,9 +339,9 @@ export default function StockoutForm() {
                   type="text"
                   className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase focus:border-blue-600"
                   placeholder="e.g. STAR_PEPSI"
-                  value={brand}
+                  value={product}
                   onChange={(e) => {
-                    setBrand(e.target.value);
+                    setProduct(e.target.value);
                     setShowSuggestions(true);
                   }}
                   onFocus={() => setShowSuggestions(true)}
@@ -281,7 +356,7 @@ export default function StockoutForm() {
                       key={s}
                       type="button"
                       onClick={() => {
-                        setBrand(s);
+                        setProduct(s);
                         setShowSuggestions(false);
                       }}
                       className="w-full text-left px-5 py-3 text-xs font-black text-slate-300 hover:bg-slate-900 uppercase"
@@ -379,26 +454,130 @@ export default function StockoutForm() {
             </div>
           </div>
         ) : (
-          /* SALES ALERT CREATION INTERFACE MODE */
+          /* SALES ALERT CREATION AND UPDATE INTERFACE MODE */
           <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-                Alert Content Message
-              </label>
-              <div className="relative">
-                <Megaphone
-                  className="absolute left-4 top-3.5 text-slate-500"
-                  size={16}
-                />
-                <textarea
-                  required
-                  value={alertText}
-                  onChange={(e) => setAlertText(e.target.value)}
-                  placeholder="e.g., Massive 2L Dew delivery incoming tomorrow for endcap promo drop. Clear floor room tonight."
-                  className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-32 focus:border-blue-600"
-                />
+            {matchingActiveAlerts.length > 0 && (
+              <div className="space-y-3 p-4 bg-slate-950/80 border border-slate-800 rounded-3xl">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+                      Existing open broadcast alert
+                    </p>
+                    <p className="text-sm font-bold text-slate-100">
+                      Store {store.trim()}
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400">
+                    Open
+                  </span>
+                </div>
+
+                {matchingActiveAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className="space-y-2 rounded-3xl bg-slate-900/90 p-3 border border-slate-800"
+                  >
+                    <p className="text-slate-200 text-sm font-bold">
+                      "{alert.alert_text}"
+                    </p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-black">
+                      Created by {alert.author_name}
+                    </p>
+                    {alert.resolution_text && (
+                      <div className="rounded-3xl bg-slate-950/80 p-3 border border-slate-800">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-black">
+                          Latest update
+                        </p>
+                        <p className="mt-1 text-slate-300 text-sm">
+                          {alert.resolution_text}
+                        </p>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveAlertActionId(alert.id);
+                        setAlertResolutionText("");
+                      }}
+                      className="w-full text-left px-4 py-3 bg-blue-600 text-white font-black rounded-3xl uppercase tracking-[0.15em] text-[9px] hover:bg-blue-500"
+                    >
+                      Resolve / Update this alert
+                    </button>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
+
+            {!activeAlertActionId ? (
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+                  Alert Content Message
+                </label>
+                <div className="relative">
+                  <Megaphone
+                    className="absolute left-4 top-3.5 text-slate-500"
+                    size={16}
+                  />
+                  <textarea
+                    required
+                    value={alertText}
+                    onChange={(e) => setAlertText(e.target.value)}
+                    placeholder="e.g., Massive 2L Dew delivery incoming tomorrow for endcap promo drop. Clear floor room tonight."
+                    className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-32 focus:border-blue-600"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 p-4 bg-slate-950/80 border border-slate-800 rounded-3xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-black">
+                    Resolution / status message
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveAlertActionId(null);
+                      setAlertResolutionText("");
+                    }}
+                    className="text-[9px] text-slate-400 hover:text-slate-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <textarea
+                  value={alertResolutionText}
+                  onChange={(e) => setAlertResolutionText(e.target.value)}
+                  placeholder="Enter a resolution note, update message, or reason for closing the alert."
+                  className="w-full bg-slate-950 text-slate-50 p-3.5 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-24 focus:border-blue-600"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleAlertAction(activeAlertActionId, false)
+                    }
+                    disabled={isAlertActionSubmitting}
+                    className="px-4 py-3 bg-blue-600 text-white font-black rounded-3xl hover:bg-blue-500 disabled:opacity-50"
+                  >
+                    Save Update
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAlertAction(activeAlertActionId, true)}
+                    disabled={isAlertActionSubmitting}
+                    className="px-4 py-3 bg-emerald-600 text-white font-black rounded-3xl hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    Close Alert
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {alertError && (
+              <p className="text-[10px] text-rose-400 font-black uppercase tracking-[0.2em]">
+                {alertError}
+              </p>
+            )}
           </div>
         )}
 

@@ -69,6 +69,37 @@ export default function InsightsPage() {
     return logs.find((l) => l.id === selectedLogModal.id) || selectedLogModal;
   }, [selectedLogModal, logs]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-app-bg text-app-text">
+        <p className="text-sm text-app-muted uppercase tracking-[0.3em] font-black">
+          Loading Insights...
+        </p>
+      </div>
+    );
+  }
+
+  if (!profile || !isManagement) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-app-bg text-app-text">
+        <div className="max-w-xl w-full bg-app-card border border-app-border rounded-3xl shadow-2xl p-10 text-center">
+          <h1 className="text-3xl font-black uppercase tracking-[0.2em] mb-4">
+            Access Denied
+          </h1>
+          <p className="text-sm text-app-muted mb-6">
+            Insights are only available to elevated users.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-full bg-pepsi-blue px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-white hover:bg-blue-500"
+          >
+            Return to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const formatPST = (dateString: string | undefined) => {
     if (!dateString) return "";
     return new Date(dateString).toLocaleString("en-US", {
@@ -527,7 +558,7 @@ export default function InsightsPage() {
                     {log.store}
                   </td>
                   <td className="p-4 font-black text-xs uppercase text-slate-200">
-                    {log.brand}{" "}
+                    {log.product}{" "}
                     <span className="text-slate-500 font-bold ml-1">
                       {log.pack_type}
                     </span>
@@ -582,7 +613,7 @@ export default function InsightsPage() {
                       Product Name
                     </span>
                     <span className="text-sm font-black text-slate-200 uppercase">
-                      {currentModalData.brand} {currentModalData.pack_type}
+                      {currentModalData.product} {currentModalData.pack_type}
                     </span>
                   </div>
                   {isManagement && (
