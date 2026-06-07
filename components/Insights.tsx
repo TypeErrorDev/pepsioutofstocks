@@ -26,6 +26,10 @@ export default function Insights() {
     if (!logs || logs.length === 0) return null;
     // Product Aggregation
     const productMap: Record<string, number> = {};
+    const storeMap: Record<
+      string,
+      { name: string; stockouts: number; gaps: number }
+    > = {};
 
     logs.forEach((l) => {
       // Store Aggregation
