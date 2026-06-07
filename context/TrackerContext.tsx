@@ -10,7 +10,12 @@ import React, {
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
-export type UserRole = "admin" | "team_lead" | "sales_rep" | "user";
+export type UserRole =
+  | "admin"
+  | "team_lead"
+  | "sales_rep"
+  | "merchandiser"
+  | "user";
 
 export interface Profile {
   id: string;
@@ -44,6 +49,15 @@ interface TrackerContextType {
   logs: StockoutLog[];
   loading: boolean;
   fetchLogs: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    gpid: string,
+    role: UserRole,
+  ) => Promise<void>;
+  signOut: () => Promise<void>;
   addLog: (
     logData: Omit<
       StockoutLog,
@@ -155,6 +169,86 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
     return () => authListener.subscription.unsubscribe();
   }, [fetchLogs]);
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+
+      if (data.session?.user) {
+        setUser(data.session.user);
+        await Promise.all([fetchProfile(data.session.user.id), fetchLogs()]);
+      }
+    } catch (error) {
+      console.error("Sign-in failure:", error);
+      throw error;
+    }
+  };
+
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    gpid: string,
+    role: UserRole,
+  ) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (error) throw error;
+
+      const newUser = data.user;
+      if (!newUser) {
+        throw new Error("Unable to create user account.");
+      }
+
+      const username = email.split("@")[0];
+      const { error: profileError } = await supabase.from("profiles").insert([
+        {
+          id: newUser.id,
+          username,
+          full_name: fullName,
+          gpid,
+          role,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (profileError) throw profileError;
+
+      setUser(newUser);
+      setProfile({
+        id: newUser.id,
+        username,
+        full_name: fullName,
+        gpid,
+        role,
+        created_at: new Date().toISOString(),
+      });
+      await fetchLogs();
+    } catch (error) {
+      console.error("Registration failure:", error);
+      throw error;
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+      setProfile(null);
+      setLogs([]);
+    } catch (error) {
+      console.error("Sign-out failure:", error);
+      throw error;
+    }
+  };
 
   // --- SMART INTEGRATED LOG ENGINE (INFLATION PROTECTION) ---
   const addLog = async (logData: any) => {
@@ -272,6 +366,9 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         logs,
         loading,
         fetchLogs,
+        signIn,
+        signUp,
+        signOut,
         addLog,
         toggleWorkedStatus,
         hideLog,

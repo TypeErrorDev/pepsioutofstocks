@@ -8,9 +8,10 @@ import {
   Circle,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Plus,
   ClipboardCheck,
+  Search,
+  FilterX,
 } from "lucide-react";
 
 export default function LogTable() {
@@ -19,6 +20,9 @@ export default function LogTable() {
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [reasonModalId, setReasonModalId] = useState<string | null>(null);
   const [validationReason, setValidationReason] = useState("");
+
+  // New State: Live store filter for current location matching
+  const [currentStoreInput, setCurrentStoreInput] = useState("");
 
   const itemsPerPage = 10;
 
@@ -33,6 +37,11 @@ export default function LogTable() {
     };
   }, [selectedStore, reasonModalId]);
 
+  // Reset pagination index if user filters by a specific store location
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [currentStoreInput]);
+
   const activeLogs = useMemo(
     () => logs.filter((log) => !log.is_hidden),
     [logs],
@@ -41,15 +50,31 @@ export default function LogTable() {
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
 
-  const filteredLogs = isManagement
-    ? activeLogs
-    : activeLogs.filter((log) => log.user_name === profile?.full_name);
+  // 1. Filter by User Role Scope Boundary
+  const roleFilteredLogs = useMemo(() => {
+    return isManagement
+      ? activeLogs
+      : activeLogs.filter((log) => log.user_name === profile?.full_name);
+  }, [activeLogs, isManagement, profile]);
 
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
-  const currentLogs = filteredLogs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+  // 2. Filter by Current Store Focus Input Element
+  const finalFilteredLogs = useMemo(() => {
+    if (!currentStoreInput.trim()) return roleFilteredLogs;
+    return roleFilteredLogs.filter((log) =>
+      log.store
+        .toString()
+        .toLowerCase()
+        .includes(currentStoreInput.trim().toLowerCase()),
+    );
+  }, [roleFilteredLogs, currentStoreInput]);
+
+  const totalPages = Math.ceil(finalFilteredLogs.length / itemsPerPage);
+  const currentLogs = useMemo(() => {
+    return finalFilteredLogs.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage,
+    );
+  }, [finalFilteredLogs, currentPage]);
 
   const formatPST = (dateString: string | undefined) => {
     if (!dateString) return "";
@@ -68,9 +93,8 @@ export default function LogTable() {
     return activeLogs.filter((l) => l.store === selectedStore);
   }, [selectedStore, activeLogs]);
 
-  // Handler to safely bump the verification count by 1 day using context deduplication logic
   const handleAddDay = async (e: React.MouseEvent, log: any) => {
-    e.stopPropagation(); // Avoid triggering full store details overlay modal
+    e.stopPropagation();
     try {
       await addLog({
         store: log.store,
@@ -108,20 +132,46 @@ export default function LogTable() {
 
   return (
     <div className="flex flex-col h-full bg-app-card transition-colors">
-      <div className="p-5 border-b border-app-border flex justify-between items-center bg-app-card/50">
+      {/* HEADER SECTION CONTROLS */}
+      <div className="p-5 border-b border-app-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-app-card/50">
         <div className="flex flex-col">
           <h3 className="text-xs font-black text-app-text uppercase italic tracking-widest leading-none mb-1">
             Live Inventory Gaps
           </h3>
           <span className="text-[8px] font-bold text-app-muted uppercase tracking-widest">
-            {filteredLogs.length} Tracks Active
+            {finalFilteredLogs.length} Gaps Displayed
           </span>
         </div>
-        <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
+
+        {/* CURRENT LOCATION SEARCH BAR ELEMENT */}
+        <div className="w-full sm:w-64 relative">
+          <Search
+            className="absolute left-3 top-2.5 text-slate-600"
+            size={14}
+          />
+          <input
+            type="text"
+            value={currentStoreInput}
+            onChange={(e) => setCurrentStoreInput(e.target.value)}
+            placeholder="TYPE CURRENT STORE NUMBER..."
+            className="w-full bg-slate-950 border border-slate-850 p-2 rounded-xl pl-9 pr-8 text-[10px] font-black tracking-wider text-slate-200 placeholder:text-slate-700 outline-none focus:border-blue-600 uppercase transition-all"
+          />
+          {currentStoreInput && (
+            <button
+              onClick={() => setCurrentStoreInput("")}
+              className="absolute right-2.5 top-2.5 text-slate-600 hover:text-slate-400 transition-colors"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        {/* PAGINATION CONTROLS */}
+        <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border self-end sm:self-auto">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
             disabled={currentPage === 1}
-            className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30"
+            className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30 cursor-pointer"
           >
             ◀
           </button>
@@ -131,13 +181,14 @@ export default function LogTable() {
           <button
             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
             disabled={currentPage === totalPages || totalPages === 0}
-            className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30"
+            className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30 cursor-pointer"
           >
             ▶
           </button>
         </div>
       </div>
 
+      {/* FEED LIST GRID MATRIX */}
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -160,77 +211,142 @@ export default function LogTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-app-border/30">
-            {currentLogs.map((log) => (
-              <tr
-                key={log.id}
-                onClick={() => setSelectedStore(log.store)}
-                className="hover:bg-app-bg/40 transition-colors cursor-pointer group"
-              >
-                <td className="p-4 text-center">
-                  {log.is_worked ? (
-                    <CheckCircle2
-                      size={16}
-                      className="text-emerald-500 mx-auto"
-                    />
-                  ) : (
-                    <Circle
-                      size={16}
-                      className="text-app-muted/30 mx-auto group-hover:text-amber-500/50 transition-colors"
-                    />
-                  )}
-                </td>
-                <td className="p-4 font-black text-xs uppercase text-app-text">
-                  {log.brand}{" "}
-                  <span className="text-app-muted font-bold ml-1">
-                    {log.pack_type}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <MapPin size={12} className="text-pepsi-blue" />
-                    <span className="text-xs font-black text-app-text/90">
-                      {log.store}
+            {currentLogs.length > 0 ? (
+              currentLogs.map((log) => (
+                <tr
+                  key={log.id}
+                  onClick={() => setSelectedStore(log.store)}
+                  className="hover:bg-app-bg/40 transition-colors cursor-pointer group"
+                >
+                  <td className="p-4 text-center">
+                    {log.is_worked ? (
+                      <CheckCircle2
+                        size={16}
+                        className="text-emerald-500 mx-auto"
+                      />
+                    ) : (
+                      <Circle
+                        size={16}
+                        className="text-app-muted/30 mx-auto group-hover:text-amber-500/50 transition-colors"
+                      />
+                    )}
+                  </td>
+                  <td className="p-4 font-black text-xs uppercase text-app-text">
+                    {log.brand}{" "}
+                    <span className="text-app-muted font-bold ml-1">
+                      {log.pack_type}
                     </span>
-                  </div>
-                </td>
-                <td className="p-4 text-center">
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${log.verification_count > 3 ? "bg-red-500/10 text-red-400" : "bg-app-bg text-app-muted"}`}
-                  >
-                    {log.verification_count || 1}d
-                  </span>
-                </td>
-                <td className="p-4 text-right space-x-2">
-                  {!log.is_worked && (
-                    <>
-                      {/* ADD A DAY ACTION BUTTON */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleAddDay(e, log)}
-                        className="px-2 py-1 bg-slate-950 text-slate-400 hover:text-blue-500 hover:border-blue-500/30 border border-slate-800 text-[9px] font-black uppercase rounded-lg transition-all"
-                        title="Add Day Missing"
-                      >
-                        + 1 Day
-                      </button>
-
-                      {/* WORKED LOG STATUS ACTION BUTTON */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleOpenCloseoutModal(e, log.id)}
-                        className="px-2 py-1 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 text-[9px] font-black uppercase rounded-lg transition-all"
-                      >
-                        Resolve
-                      </button>
-                    </>
-                  )}
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={12} className="text-pepsi-blue" />
+                      <span className="text-xs font-black text-app-text/90">
+                        {log.store}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-center">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${log.verification_count > 3 ? "bg-red-500/10 text-red-400" : "bg-app-bg text-app-muted"}`}
+                    >
+                      {log.verification_count || 1}d
+                    </span>
+                  </td>
+                  <td className="p-4 text-right space-x-2">
+                    {!log.is_worked && (
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => handleAddDay(e, log)}
+                          className="px-2 py-1 bg-slate-950 text-slate-400 hover:text-blue-500 hover:border-blue-500/30 border border-slate-800 text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer"
+                          title="Verify Gap Still Exists"
+                        >
+                          + 1 Day
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenCloseoutModal(e, log.id)}
+                          className="px-2 py-1 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer"
+                        >
+                          Resolve
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="p-20 text-center text-xs font-black text-slate-600 uppercase tracking-widest"
+                >
+                  No active gaps registered for Store focus query criteria.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
 
-      {/* REASON CAPTURE POPUP GATED INSIDE ACTION SHEET */}
+      {/* Main Detail Modal */}
+      {selectedStore && modalData && (
+        <div className="fixed inset-0 z-999 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
+            onClick={() => setSelectedStore(null)}
+          />
+          <div className="relative bg-app-card border border-app-border w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <header className="p-6 border-b border-app-border flex justify-between items-center bg-app-card/50">
+              <div>
+                <h2 className="text-xl font-black text-app-text uppercase italic tracking-tighter">
+                  Store{" "}
+                  <span className="text-pepsi-blue">#{selectedStore}</span>
+                </h2>
+                <p className="text-[10px] font-black text-app-muted uppercase tracking-widest">
+                  Active Gaps Audit
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedStore(null)}
+                className="p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </header>
+
+            <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar">
+              {modalData.map((log) => (
+                <div
+                  key={log.id}
+                  className="p-4 bg-app-bg/30 rounded-2xl border border-app-border space-y-3"
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-app-text uppercase">
+                        {log.brand} {log.pack_type}
+                      </span>
+                      <span className="text-[9px] text-app-muted font-bold uppercase mt-1">
+                        Streak: {log.verification_count || 1} Days Out of Stock
+                      </span>
+                    </div>
+                    {!log.is_worked && (
+                      <button
+                        onClick={(e) => handleOpenCloseoutModal(e, log.id)}
+                        className="px-3 py-1.5 rounded-lg text-[9px] font-black bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white transition-all cursor-pointer"
+                      >
+                        Resolve Gap
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REASON CLOSEOUT POPUP SHEET */}
       {reasonModalId && (
         <div className="fixed inset-0 z-1000 flex items-center justify-center p-4">
           <div
@@ -251,18 +367,18 @@ export default function LogTable() {
               value={validationReason}
               onChange={(e) => setValidationReason(e.target.value)}
               placeholder="What resolution path fixed this item outage?"
-              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none font-bold"
+              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none font-bold placeholder:text-slate-700"
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setReasonModalId(null)}
-                className="flex-1 py-3 bg-app-bg text-app-muted text-[10px] font-black uppercase rounded-xl border border-app-border"
+                className="flex-1 py-3 bg-app-bg text-app-muted text-[10px] font-black uppercase rounded-xl border border-app-border cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={submitCloseoutWithReason}
-                className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl shadow-lg"
+                className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl shadow-lg cursor-pointer"
               >
                 Confirm Resolve
               </button>

@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   ChevronRight,
   Layers,
+  Megaphone,
+  Sparkles,
 } from "lucide-react";
 
 const PACK_TYPES = [
@@ -36,8 +38,12 @@ const ROOT_CAUSES = [
 ];
 
 export default function StockoutForm() {
-  const { addLog, profile, logs } = useTracker();
+  const { addLog, addSalesAlert, salesAlerts, profile, logs } = useTracker();
 
+  // Mode state: 'gap' for logging standard out-of-stock items, 'alert' for creating rep notices
+  const [activeFormMode, setActiveFormMode] = useState<"gap" | "alert">("gap");
+
+  // Standard Form States
   const [brand, setBrand] = useState("");
   const [type, setType] = useState("");
   const [store, setStore] = useState("");
@@ -45,12 +51,27 @@ export default function StockoutForm() {
   const [cause, setCause] = useState("Ordering Error");
   const [notes, setNotes] = useState("");
 
+  // Sales Alert Text Input State
+  const [alertText, setAlertText] = useState("");
+
+  // UI Status Flash Overlays
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isDuplicatedFlash, setIsDuplicatedFlash] = useState(false);
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  const canWriteAlerts =
+    profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
+
+  // Filter alerts matching whatever store number is typed in live
+  const matchingActiveAlerts = useMemo(() => {
+    if (!store.trim()) return [];
+    return salesAlerts.filter(
+      (a) => a.store.toString().trim() === store.toString().trim(),
+    );
+  }, [store, salesAlerts]);
 
   const distinctBrands = useMemo(() => {
     if (!logs) return [];
@@ -85,10 +106,26 @@ export default function StockoutForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!brand.trim() || !store.trim() || !type || !location) return;
 
+    if (activeFormMode === "alert") {
+      if (!store.trim() || !alertText.trim()) return;
+      setIsSubmitting(true);
+      try {
+        await addSalesAlert(store, alertText);
+        setAlertText("");
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Handle gap logging form submission
+    if (!brand.trim() || !store.trim() || !type || !location) return;
     setIsSubmitting(true);
-    setShowSuggestions(false);
     try {
       const result = await addLog({
         brand: brand.trim(),
@@ -118,109 +155,83 @@ export default function StockoutForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 relative">
-      {/* STANDARD SUCCESS MODAL OVERLAY */}
-      {showSuccess && (
-        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
-          <CheckCircle2 size={32} className="text-emerald-500 mb-2" />
-          <span className="text-[10px] font-black text-slate-50 uppercase tracking-[0.4em]">
-            New Gap Synced
-          </span>
+    <div className="space-y-4">
+      {/* ROLE SWITCHING TAB INTERFACES (ONLY RENDERED FOR SALES/ADMINS) */}
+      {canWriteAlerts && (
+        <div className="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-slate-850 mb-2">
+          <button
+            type="button"
+            onClick={() => setActiveFormMode("gap")}
+            className={`py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+              activeFormMode === "gap"
+                ? "bg-slate-800 text-white"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Log Outage Gap
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFormMode("alert")}
+            className={`py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeFormMode === "alert"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            <Megaphone size={12} /> Broadcast Rep Alert
+          </button>
         </div>
       )}
 
-      {/* DEDUPLICATION OVERLAY */}
-      {isDuplicatedFlash && (
-        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
-          <Layers size={32} className="text-blue-500 mb-2 animate-bounce" />
-          <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] text-center px-4">
-            Gap Re-verified (+1 Day Streak)
-          </span>
+      {/* DYNAMIC FIELD ALERTS HUD FOR MERCH PERSONNEL */}
+      {activeFormMode === "gap" && matchingActiveAlerts.length > 0 && (
+        <div className="bg-blue-950/40 border border-blue-500/30 rounded-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-300 space-y-2 shadow-lg shadow-blue-500/5">
+          <div className="flex items-center gap-1.5 text-blue-400 text-[10px] font-black uppercase tracking-widest">
+            <Megaphone size={12} className="animate-pulse" />
+            <span>
+              Active Order Desk Alerts ({matchingActiveAlerts.length})
+            </span>
+          </div>
+          <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+            {matchingActiveAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="text-[11px] text-slate-300 font-medium leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-900"
+              >
+                <p>"{alert.alert_text}"</p>
+                <span className="text-[8px] font-black uppercase text-slate-500 block mt-1.5">
+                  Author: {alert.author_name}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="space-y-5">
-        <div className="space-y-1 relative" ref={autocompleteRef}>
-          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-            Brand / SKU
-          </label>
-          <div className="relative">
-            <Package
-              className="absolute left-4 top-3.5 text-slate-500"
-              size={16}
-            />
-            <input
-              type="text"
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase"
-              placeholder="ex: Pepsi, Diet Coke, etc."
-              value={brand}
-              onChange={(e) => {
-                setBrand(e.target.value);
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              required
-              autoComplete="off"
-            />
+      <form onSubmit={handleSubmit} className="space-y-6 relative">
+        {showSuccess && (
+          <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
+            <CheckCircle2 size={32} className="text-emerald-500 mb-2" />
+            <span className="text-[10px] font-black text-slate-50 uppercase tracking-[0.4em]">
+              Transaction Completed
+            </span>
           </div>
-          {showSuggestions && filteredSuggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-2 bg-slate-950 border border-slate-800 rounded-2xl max-h-48 overflow-y-auto z-40 divide-y divide-slate-900">
-              {filteredSuggestions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => {
-                    setBrand(s);
-                    setShowSuggestions(false);
-                  }}
-                  className="w-full text-left px-5 py-3 text-xs font-black text-slate-300 hover:bg-slate-900 uppercase"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
 
-        <div className="space-y-2">
-          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-            Pack Type
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            {PACK_TYPES.map((pType) => (
-              <button
-                key={pType}
-                type="button"
-                onClick={() => setType(pType)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${type === pType ? "bg-pepsi-blue border-pepsi-blue text-white" : "bg-slate-950 border-slate-800 text-slate-500"}`}
-              >
-                {pType}
-              </button>
-            ))}
+        {isDuplicatedFlash && (
+          <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
+            <Layers size={32} className="text-blue-500 mb-2" />
+            <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] text-center px-4">
+              Gap Re-verified (+1 Day Streak)
+            </span>
           </div>
-        </div>
+        )}
 
-        <div className="space-y-2">
-          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-            Store Location
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {LOCATIONS.map((loc) => (
-              <button
-                key={loc}
-                type="button"
-                onClick={() => setLocation(loc)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${location === loc ? "bg-emerald-600 border-emerald-600 text-white" : "bg-slate-950 border-slate-800 text-slate-500"}`}
-              >
-                {loc}
-              </button>
-            ))}
-          </div>
-        </div>
-
+        {/* SHARED STORE IDENTITY FIELD BASELINE */}
         <div className="space-y-1">
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-            Store Identity
+            Store Identity Location
           </label>
           <div className="relative">
             <MapPin
@@ -229,8 +240,8 @@ export default function StockoutForm() {
             />
             <input
               type="text"
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase"
-              placeholder="ex: Safeway #1143, Walmart #5678, etc."
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase focus:border-blue-600"
+              placeholder="e.g. 5406"
               value={store}
               onChange={(e) => setStore(e.target.value)}
               required
@@ -238,59 +249,172 @@ export default function StockoutForm() {
           </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-            Logistical Cause
-          </label>
-          <div className="relative">
-            <AlertCircle
-              className="absolute left-4 top-3.5 text-slate-500"
-              size={16}
-            />
-            <select
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold appearance-none cursor-pointer"
-              value={cause}
-              onChange={(e) => setCause(e.target.value)}
-            >
-              {ROOT_CAUSES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <ChevronRight
-              className="absolute right-4 top-4 text-slate-500 pointer-events-none rotate-90"
-              size={14}
-            />
-          </div>
-        </div>
+        {activeFormMode === "gap" ? (
+          <div className="space-y-5">
+            {/* BRAND SELECTION WITH AUTOCOMPLETE */}
+            <div className="space-y-1 relative" ref={autocompleteRef}>
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+                Brand / SKU
+              </label>
+              <div className="relative">
+                <Package
+                  className="absolute left-4 top-3.5 text-slate-500"
+                  size={16}
+                />
+                <input
+                  type="text"
+                  className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase focus:border-blue-600"
+                  placeholder="e.g. STAR_PEPSI"
+                  value={brand}
+                  onChange={(e) => {
+                    setBrand(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  required
+                  autoComplete="off"
+                />
+              </div>
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-2 bg-slate-950 border border-slate-800 rounded-2xl max-h-48 overflow-y-auto z-40 divide-y divide-slate-900">
+                  {filteredSuggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setBrand(s);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full text-left px-5 py-3 text-xs font-black text-slate-300 hover:bg-slate-900 uppercase"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-        <div className="space-y-1">
-          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
-            Field Observations
-          </label>
-          <div className="relative">
-            <MessageSquare
-              className="absolute left-4 top-3.5 text-slate-500"
-              size={16}
-            />
-            <textarea
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-20"
-              placeholder="Specific notes..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
+            {/* PACK TYPE SELECTOR GRID */}
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+                Pack Type
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {PACK_TYPES.map((pType) => (
+                  <button
+                    key={pType}
+                    type="button"
+                    onClick={() => setType(pType)}
+                    className={`py-2.5 text-[10px] font-black rounded-xl border transition-all cursor-pointer ${type === pType ? "bg-blue-600 border-blue-600 text-white" : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600"}`}
+                  >
+                    {pType}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group"
-      >
-        {isSubmitting ? "SYNCING..." : "LOG FIELD GAP / VERIFY"}
-      </button>
-    </form>
+            {/* DISPLAY LOCATION MATRIX SELECTOR */}
+            <div className="space-y-2">
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+                Store Layout Segment
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {LOCATIONS.map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => setLocation(loc)}
+                    className={`py-2.5 text-[10px] font-black rounded-xl border transition-all cursor-pointer ${location === loc ? "bg-emerald-600 border-emerald-600 text-white" : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600"}`}
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ROOT CAUSES SELECTOR CONFIGURATION */}
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+                Logistical Cause
+              </label>
+              <div className="relative">
+                <AlertCircle
+                  className="absolute left-4 top-3.5 text-slate-500"
+                  size={16}
+                />
+                <select
+                  className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold appearance-none cursor-pointer"
+                  value={cause}
+                  onChange={(e) => setCause(e.target.value)}
+                >
+                  {ROOT_CAUSES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <ChevronRight
+                  className="absolute right-4 top-4 text-slate-500 pointer-events-none rotate-90"
+                  size={14}
+                />
+              </div>
+            </div>
+
+            {/* ADDITIONAL OBSERVATION NOTES */}
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+                Field Observations
+              </label>
+              <div className="relative">
+                <MessageSquare
+                  className="absolute left-4 top-3.5 text-slate-500"
+                  size={16}
+                />
+                <textarea
+                  className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-20"
+                  placeholder="Specific notes (surges, display layout resets)..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* SALES ALERT CREATION INTERFACE MODE */
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+                Alert Content Message
+              </label>
+              <div className="relative">
+                <Megaphone
+                  className="absolute left-4 top-3.5 text-slate-500"
+                  size={16}
+                />
+                <textarea
+                  required
+                  value={alertText}
+                  onChange={(e) => setAlertText(e.target.value)}
+                  placeholder="e.g., Massive 2L Dew delivery incoming tomorrow for endcap promo drop. Clear floor room tonight."
+                  className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-32 focus:border-blue-600"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={`w-full text-white font-black py-4 rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group cursor-pointer ${activeFormMode === "alert" ? "bg-blue-600 shadow-xl shadow-blue-600/10" : "bg-pepsi-blue"}`}
+        >
+          {isSubmitting
+            ? "SYNCING PROCESS..."
+            : activeFormMode === "alert"
+              ? "BROADCAST FIELD ALERT"
+              : "LOG FIELD GAP / VERIFY"}
+        </button>
+      </form>
+    </div>
   );
 }
