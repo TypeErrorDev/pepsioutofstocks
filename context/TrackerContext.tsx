@@ -45,6 +45,14 @@ export interface StockoutLog {
   verification_count: number; // Tracked for inflation reduction
 }
 
+export interface SalesAlert {
+  id: string;
+  store: string;
+  alert_text: string;
+  author_name: string;
+  created_at: string;
+}
+
 interface TrackerContextType {
   user: User | null;
   profile: Profile | null;
@@ -60,6 +68,8 @@ interface TrackerContextType {
     role: UserRole,
   ) => Promise<void>;
   signOut: () => Promise<void>;
+  salesAlerts: SalesAlert[];
+  addSalesAlert: (store: string, alertText: string) => Promise<void>;
   addLog: (
     logData: Omit<
       StockoutLog,
@@ -89,6 +99,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [logs, setLogs] = useState<StockoutLog[]>([]);
+  const [salesAlerts, setSalesAlerts] = useState<SalesAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -119,6 +130,20 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const fetchSalesAlerts = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("sales_alerts")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setSalesAlerts((data as SalesAlert[]) || []);
+    } catch (error) {
+      console.error("Failed to load sales alerts:", error);
+      setSalesAlerts([]);
+    }
+  }, []);
+
   // Realtime Subscriptions
   useEffect(() => {
     if (!user) return;
@@ -146,7 +171,11 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getSession();
         if (session?.user) {
           setUser(session.user);
-          await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
+          await Promise.all([
+            fetchProfile(session.user.id),
+            fetchLogs(),
+            fetchSalesAlerts(),
+          ]);
         }
       } catch (error) {
         console.error("Auth init failure:", error);
@@ -160,17 +189,22 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         if (event === "SIGNED_IN" && session?.user) {
           setUser(session.user);
-          await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
+          await Promise.all([
+            fetchProfile(session.user.id),
+            fetchLogs(),
+            fetchSalesAlerts(),
+          ]);
         } else if (event === "SIGNED_OUT") {
           setUser(null);
           setProfile(null);
           setLogs([]);
+          setSalesAlerts([]);
         }
       },
     );
 
     return () => authListener.subscription.unsubscribe();
-  }, [fetchLogs]);
+  }, [fetchLogs, fetchSalesAlerts]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -182,7 +216,11 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
       if (data.session?.user) {
         setUser(data.session.user);
-        await Promise.all([fetchProfile(data.session.user.id), fetchLogs()]);
+        await Promise.all([
+          fetchProfile(data.session.user.id),
+          fetchLogs(),
+          fetchSalesAlerts(),
+        ]);
       }
     } catch (error) {
       console.error("Sign-in failure:", error);
@@ -239,6 +277,28 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addSalesAlert = async (store: string, alertText: string) => {
+    try {
+      const newAlert = {
+        store,
+        alert_text: alertText,
+        author_name: profile?.full_name || "Unknown Rep",
+        created_at: new Date().toISOString(),
+      };
+
+      const result = await supabase.from("sales_alerts").insert([newAlert]);
+      const data = result.data as SalesAlert[] | null;
+      const error = result.error;
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setSalesAlerts((current) => [...(current || []), data[0]]);
+      }
+    } catch (error) {
+      console.error("Failed to create sales alert:", error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -246,6 +306,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setProfile(null);
       setLogs([]);
+      setSalesAlerts([]);
     } catch (error) {
       console.error("Sign-out failure:", error);
       throw error;
@@ -366,11 +427,13 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         logs,
+        salesAlerts,
         loading,
         fetchLogs,
         signIn,
         signUp,
         signOut,
+        addSalesAlert,
         addLog,
         toggleWorkedStatus,
         hideLog,
