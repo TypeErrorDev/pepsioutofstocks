@@ -16,6 +16,7 @@ import {
   Circle,
   CheckCircle,
   ClipboardCheck,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -52,7 +53,6 @@ export default function InsightsPage() {
   const isManagement =
     profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
 
-  // Background page scrolling lock when any modal window is open
   useEffect(() => {
     if (selectedLogModal || reasonModalId) {
       document.body.style.overflow = "hidden";
@@ -64,13 +64,11 @@ export default function InsightsPage() {
     };
   }, [selectedLogModal, reasonModalId]);
 
-  // Sync state if modal row receives updates via realtime stream
   const currentModalData = useMemo(() => {
     if (!selectedLogModal) return null;
     return logs.find((l) => l.id === selectedLogModal.id) || selectedLogModal;
   }, [selectedLogModal, logs]);
 
-  // PST Formatting Helper
   const formatPST = (dateString: string | undefined) => {
     if (!dateString) return "";
     return new Date(dateString).toLocaleString("en-US", {
@@ -84,10 +82,8 @@ export default function InsightsPage() {
     });
   };
 
-  // --- RESOLUTION REASON CODES HANDLER ---
   const handleConfirmValidation = async () => {
     if (!reasonModalId) return;
-
     try {
       const targetLog = logs.find((l) => l.id === reasonModalId);
       if (!targetLog) return;
@@ -97,11 +93,10 @@ export default function InsightsPage() {
         targetLog.is_worked,
         validationReason,
       );
-
       setReasonModalId(null);
       setValidationReason("");
     } catch (err) {
-      console.error("Operational validation fault exception:", err);
+      console.error("Validation confirmation exception:", err);
     }
   };
 
@@ -147,7 +142,9 @@ export default function InsightsPage() {
             cutoff.setFullYear(now.getFullYear() - timeValue);
             break;
         }
-        data = data.filter((log) => new Date(log.created_at) >= cutoff);
+        data = data.filter(
+          (log) => new Date(log.last_verified_at || log.created_at) >= cutoff,
+        );
       }
     } else {
       if (startDate) {
@@ -176,34 +173,28 @@ export default function InsightsPage() {
     endDate,
   ]);
 
-  // --- ACCOUNT PRIORITY INDEX AGGREGATION ---
+  // --- ACCOUNT VELOCITY RANKINGS ---
   const storeRankings = useMemo(() => {
     const storeMap: Record<
       string,
-      { name: string; stockouts: number; gaps: number; total: number }
+      { name: string; distinctGaps: number; trackingImpact: number }
     > = {};
 
     filteredLogs.forEach((log) => {
       if (!storeMap[log.store]) {
         storeMap[log.store] = {
           name: log.store,
-          stockouts: 0,
-          gaps: 0,
-          total: 0,
+          distinctGaps: 0,
+          trackingImpact: 0,
         };
       }
-      if (
-        log.root_cause === "Backstock" ||
-        log.root_cause === "Item In Backstock"
-      ) {
-        storeMap[log.store].gaps++;
-      } else {
-        storeMap[log.store].stockouts++;
-      }
-      storeMap[log.store].total++;
+      storeMap[log.store].distinctGaps++;
+      storeMap[log.store].trackingImpact += log.verification_count || 1;
     });
 
-    return Object.values(storeMap).sort((a, b) => b.total - a.total);
+    return Object.values(storeMap).sort(
+      (a, b) => b.trackingImpact - a.trackingImpact,
+    );
   }, [filteredLogs]);
 
   // --- PAGINATION COMPUTATIONS ---
@@ -229,9 +220,7 @@ export default function InsightsPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12 space-y-6 md:space-y-10 text-slate-100 bg-slate-950 min-h-screen">
-      {/* GLOBAL HEADLESS DATE PICKER STYLING ACCELERATOR */}
       <style jsx global>{`
-        /* Remove webkit and gecko native floating calendar pick indicators */
         input[type="date"]::-webkit-calendar-picker-indicator {
           display: none !important;
           -webkit-appearance: none !important;
@@ -245,12 +234,12 @@ export default function InsightsPage() {
         }
       `}</style>
 
-      {/* HEADER SEGMENT */}
+      {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-900 pb-6">
         <div className="space-y-1">
           <Link
             href="/"
-            className="flex items-center gap-2 text-pepsi-blue text-xs font-black uppercase tracking-[0.3em] hover:opacity-70 transition-opacity mb-2"
+            className="flex items-center gap-2 text-pepsi-blue text-xs font-black uppercase tracking-[0.3em] hover:opacity-70 mb-2"
           >
             <ArrowLeft size={12} /> Back to Dashboard
           </Link>
@@ -258,13 +247,13 @@ export default function InsightsPage() {
             Shelf<span className="text-blue-600">Health</span> Analytics
           </h1>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
-            Operator: {profile?.full_name || "Unknown"} | Access Rank:{" "}
-            {profile?.role?.toUpperCase() || "USER"}
+            Operator: {profile?.full_name || "Unknown"} | Access:{" "}
+            {profile?.role?.toUpperCase()}
           </p>
         </div>
       </header>
 
-      {/* TACTICAL METRIC CONFIGURATION CONTROLS */}
+      {/* CONTROL INPUT ENGINE */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div className="flex items-center gap-2 text-slate-400 text-xs font-black uppercase tracking-widest">
@@ -273,64 +262,42 @@ export default function InsightsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            {/* AUDIT STATUS VIEW FILTER */}
             <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
               <button
                 type="button"
                 onClick={() => setStatusFilter("all")}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                  statusFilter === "all"
-                    ? "bg-slate-800 text-white"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase rounded-lg cursor-pointer ${statusFilter === "all" ? "bg-slate-800 text-white" : "text-slate-500"}`}
               >
                 All Logs
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter("open")}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                  statusFilter === "open"
-                    ? "bg-amber-600/20 text-amber-400 border border-amber-500/10"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase rounded-lg cursor-pointer ${statusFilter === "open" ? "bg-amber-600/20 text-amber-400" : "text-slate-500"}`}
               >
                 Open Gaps
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter("resolved")}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                  statusFilter === "resolved"
-                    ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/10"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
+                className={`px-3 py-1.5 text-[9px] font-black uppercase rounded-lg cursor-pointer ${statusFilter === "resolved" ? "bg-emerald-600/20 text-emerald-400" : "text-slate-500"}`}
               >
                 Resolved
               </button>
             </div>
 
-            {/* FILTER MODE TOGGLE SWITCHES */}
             <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
               <button
                 type="button"
                 onClick={() => setFilterMode("rolling")}
-                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                  filterMode === "rolling"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
+                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg cursor-pointer ${filterMode === "rolling" ? "bg-blue-600 text-white" : "text-slate-500"}`}
               >
                 Rolling Window
               </button>
               <button
                 type="button"
                 onClick={() => setFilterMode("custom")}
-                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                  filterMode === "custom"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
-                    : "text-slate-500 hover:text-slate-300"
-                }`}
+                className={`px-4 py-1.5 text-[10px] font-black uppercase rounded-lg cursor-pointer ${filterMode === "custom" ? "bg-blue-600 text-white" : "text-slate-500"}`}
               >
                 Custom Dates
               </button>
@@ -352,26 +319,17 @@ export default function InsightsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="FILTER BY STORE NUMBER (IE: 3213)..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-10 py-3.5 text-xs text-slate-200 font-bold placeholder-slate-600 focus:outline-none focus:border-blue-600 tracking-wider uppercase"
+                placeholder="FILTER BY STORE NUMBER..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-10 py-3.5 text-xs text-slate-200 font-bold uppercase"
               />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 rounded-md transition-all cursor-pointer"
-                >
-                  <X size={12} />
-                </button>
-              )}
             </div>
           </div>
 
           {filterMode === "rolling" ? (
             <>
-              {/* Rolling Interval Value Input with Styled Custom Click Adjusters */}
               <div className="lg:col-span-3 flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
-                  Accumulation Magnitude
+                  Magnitude
                 </label>
                 <div className="relative group">
                   <input
@@ -381,56 +339,24 @@ export default function InsightsPage() {
                     onChange={(e) =>
                       setTimeValue(parseInt(e.target.value) || 0)
                     }
-                    placeholder="ENTER VALUE..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3.5 text-xs text-slate-200 font-black placeholder-slate-700 focus:outline-none focus:border-blue-600 tracking-widest transition-all"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-4 pr-12 py-3.5 text-xs text-slate-200 font-black"
                   />
-
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-60 group-hover:opacity-100">
                     <button
                       type="button"
-                      onClick={() => setTimeValue((prev) => (prev || 0) + 1)}
-                      className="p-0.5 text-slate-500 hover:text-blue-500 hover:bg-slate-900 rounded-md transition-all active:scale-95 cursor-pointer"
-                      title="Increment"
+                      onClick={() => setTimeValue((p) => (p || 0) + 1)}
+                      className="p-0.5 text-slate-500 hover:text-blue-500 cursor-pointer"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="12"
-                        height="12"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M4.5 15.75l7.5-7.5 7.5 7.5"
-                        />
-                      </svg>
+                      ▲
                     </button>
                     <button
                       type="button"
                       onClick={() =>
-                        setTimeValue((prev) => Math.max(1, (prev || 0) - 1))
+                        setTimeValue((p) => Math.max(1, (p || 0) - 1))
                       }
-                      className="p-0.5 text-slate-500 hover:text-blue-500 hover:bg-slate-900 rounded-md transition-all active:scale-95 cursor-pointer"
-                      title="Decrement"
+                      className="p-0.5 text-slate-500 hover:text-blue-500 cursor-pointer"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="12"
-                        height="12"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M19.5 8.25l-7.5 7.5-7.5-7.5"
-                        />
-                      </svg>
+                      ▼
                     </button>
                   </div>
                 </div>
@@ -438,172 +364,109 @@ export default function InsightsPage() {
 
               <div className="lg:col-span-4 flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
-                  Rolling Scale Unit
+                  Scale Unit
                 </label>
                 <select
                   value={timeUnit}
                   onChange={(e) => setTimeUnit(e.target.value as TimeRangeType)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-400 font-black focus:outline-none focus:border-blue-600 uppercase tracking-widest cursor-pointer"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-400 font-black uppercase"
                 >
                   <option value="days">Rolling Days</option>
                   <option value="weeks">Rolling Weeks</option>
                   <option value="months">Rolling Months</option>
-                  <option value="quarters">Rolling Quarters</option>
-                  <option value="years">Rolling Years</option>
                 </select>
               </div>
             </>
           ) : (
             <>
-              {/* Custom Date Range Picker Fields with Automatic Open-on-Focus Triggers */}
               <div className="lg:col-span-3 relative flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
-                  Timeline Window (Start)
+                  Timeline Start
                 </label>
-                <div className="relative flex items-center">
-                  <input
-                    type="date"
-                    value={startDate}
-                    onFocus={(e) => {
-                      try {
-                        e.target.showPicker();
-                      } catch (err) {}
-                    }}
-                    onClick={(e) => {
-                      try {
-                        (e.target as HTMLInputElement).showPicker();
-                      } catch (err) {}
-                    }}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-200 font-bold focus:outline-none focus:border-blue-600 uppercase tracking-wider cursor-pointer"
-                  />
-                  {startDate && (
-                    <button
-                      onClick={() => setStartDate("")}
-                      className="absolute right-4 text-slate-500 hover:text-slate-300 text-[10px] font-black bg-slate-950 px-1"
-                    >
-                      CLEAR
-                    </button>
-                  )}
-                </div>
+                <input
+                  type="date"
+                  value={startDate}
+                  onFocus={(e) => e.target.showPicker()}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-200 font-bold uppercase cursor-pointer"
+                />
               </div>
-
               <div className="lg:col-span-4 relative flex flex-col justify-end">
                 <label className="text-[9px] font-black text-slate-500 uppercase ml-1 mb-1.5 tracking-widest">
-                  Timeline Window (End)
+                  Timeline End
                 </label>
-                <div className="relative flex items-center">
-                  <input
-                    type="date"
-                    value={endDate}
-                    onFocus={(e) => {
-                      try {
-                        e.target.showPicker();
-                      } catch (err) {}
-                    }}
-                    onClick={(e) => {
-                      try {
-                        (e.target as HTMLInputElement).showPicker();
-                      } catch (err) {}
-                    }}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-200 font-bold focus:outline-none focus:border-blue-600 uppercase tracking-wider cursor-pointer"
-                  />
-                  {endDate && (
-                    <button
-                      onClick={() => setEndDate("")}
-                      className="absolute right-4 text-slate-500 hover:text-slate-300 text-[10px] font-black bg-slate-950 px-1"
-                    >
-                      CLEAR
-                    </button>
-                  )}
-                </div>
+                <input
+                  type="date"
+                  value={endDate}
+                  onFocus={(e) => e.target.showPicker()}
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-slate-200 font-bold uppercase cursor-pointer"
+                />
               </div>
             </>
           )}
         </div>
       </div>
 
-      {/* --- STORE VELOCITY INDEX --- */}
+      {/* VELOCITY LEDGER CORES */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
           <div className="flex items-center gap-2">
-            <TrendingUp size={16} className="text-pepsi-blue" />
+            <TrendingUp size={16} className="text-blue-500" />
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-              Timeframe Store Velocity Index (Click row to isolate query feed)
+              Store Outage Velocity Index (Highest Total Visibility Gaps First)
             </p>
           </div>
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="flex items-center gap-1.5 px-3 py-1 bg-slate-950 border border-slate-800 text-slate-400 hover:text-red-400 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-            >
-              <FilterX size={12} />
-              Reset Active Filter
-            </button>
-          )}
         </div>
         <div className="divide-y divide-slate-950 max-h-96 overflow-y-auto custom-scrollbar">
-          {storeRankings.length > 0 ? (
-            storeRankings.map((store, idx) => (
-              <div
-                key={store.name}
-                onClick={() => setSearchQuery(store.name)}
-                className={`p-5 flex items-center justify-between hover:bg-slate-950/60 cursor-pointer transition-all duration-150 group ${
-                  searchQuery === store.name
-                    ? "bg-slate-950/80 border-l-4 border-l-blue-600 pl-4"
-                    : ""
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-xs font-black text-slate-600 w-6 font-mono">
-                    #{idx + 1}
-                  </span>
-                  <div>
-                    <p className="text-sm font-black text-white uppercase tracking-wide group-hover:text-blue-400 transition-colors">
-                      Store #{store.name}
-                    </p>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight mt-0.5">
-                      {store.stockouts} Logistical Interruptions • {store.gaps}{" "}
-                      Backstock Replenishment Gaps
-                    </p>
-                  </div>
-                </div>
-                <div
-                  className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all ${store.total > 5 ? "bg-red-500/10 text-red-400 border-red-500/20 shadow-lg" : "bg-slate-950 text-slate-400 border-slate-800"}`}
-                >
-                  {store.total} Total Logs
+          {storeRankings.map((store, idx) => (
+            <div
+              key={store.name}
+              onClick={() => setSearchQuery(store.name)}
+              className="p-5 flex items-center justify-between hover:bg-slate-950/60 cursor-pointer"
+            >
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-black text-slate-600 w-6 font-mono">
+                  #{idx + 1}
+                </span>
+                <div>
+                  <p className="text-sm font-black text-white uppercase">
+                    Store #{store.name}
+                  </p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">
+                    {store.distinctGaps} Unresolved Items Missing Across
+                    displays
+                  </p>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="p-10 text-center text-xs font-black text-slate-600 uppercase tracking-widest">
-              No store logs registered within selected timeframe parameters.
+              <div className="px-3 py-1.5 rounded-xl text-[9px] font-black bg-slate-950 text-slate-400 border border-slate-800">
+                {store.trackingImpact} Aggregated Outage Days
+              </div>
             </div>
-          )}
+          ))}
         </div>
       </div>
 
-      {/* MASTER DATA QUERY GRID VIEW */}
+      {/* MASTER DATA GRID MATRIX */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
         <div className="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-          <div className="flex flex-col">
-            <h3 className="text-xs font-black uppercase italic tracking-widest leading-none mb-1 text-slate-300">
-              Query Index Feed{" "}
-              {searchQuery && `— Isolated to Store #${searchQuery}`}
+          <div>
+            <h3 className="text-xs font-black uppercase italic text-slate-300">
+              Query Index Feed
             </h3>
-            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
-              {filteredLogs.length} Records Found For Current Criteria
+            <span className="text-[8px] font-bold text-slate-500 uppercase">
+              {filteredLogs.length} Distinct Item Tracks Open
             </span>
           </div>
-
           <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
-              className="p-2 text-slate-400 hover:bg-slate-900 rounded-lg disabled:opacity-20 cursor-pointer"
+              className="p-2 text-slate-400 disabled:opacity-20"
             >
-              <ChevronLeft size={14} />
+              ◀
             </button>
             <span className="text-[10px] font-black text-slate-500 px-2 min-w-10 text-center font-mono">
               {currentPage}/{totalPages || 1}
@@ -611,9 +474,9 @@ export default function InsightsPage() {
             <button
               onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages || totalPages === 0}
-              className="p-2 text-slate-400 hover:bg-slate-900 rounded-lg disabled:opacity-20 cursor-pointer"
+              className="p-2 text-slate-400 disabled:opacity-20"
             >
-              <ChevronRight size={14} />
+              ▶
             </button>
           </div>
         </div>
@@ -626,123 +489,102 @@ export default function InsightsPage() {
                   Status
                 </th>
                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  Timestamp
+                  Last Verified
                 </th>
                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  Location ID
+                  Store
                 </th>
                 <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">
                   Product Segment
                 </th>
-                <th className="p-4 text-right text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  Root Cause Status
+                <th className="p-4 text-center text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                  Streak Count
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/40">
-              {currentLogs.length > 0 ? (
-                currentLogs.map((log) => (
-                  <tr
-                    key={log.id}
-                    onClick={() => setSelectedLogModal(log)}
-                    className="hover:bg-slate-950/30 transition-colors cursor-pointer group"
-                  >
-                    <td className="p-4 text-center">
-                      {log.is_worked ? (
-                        <CheckCircle
-                          size={16}
-                          className="text-emerald-500 mx-auto"
-                        />
-                      ) : (
-                        <Circle
-                          size={16}
-                          className="text-slate-700 mx-auto group-hover:text-amber-500/50 transition-colors"
-                        />
-                      )}
-                    </td>
-                    <td className="p-4 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      {formatPST(log.created_at)} PST
-                    </td>
-                    <td className="p-4 font-black text-xs text-blue-500 flex items-center gap-1.5">
-                      <MapPin size={12} className="text-slate-600" />
-                      <span>{log.store}</span>
-                    </td>
-                    <td className="p-4 font-black text-xs uppercase text-slate-200">
-                      {log.brand}{" "}
-                      <span className="text-slate-500 font-bold ml-1">
-                        {log.pack_type}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <span
-                        className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${
-                          log.root_cause === "Backstock" ||
-                          log.root_cause === "Item In Backstock"
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            : "bg-red-500/10 text-red-400 border-red-500/20"
-                        }`}
-                      >
-                        {log.root_cause}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="p-20 text-center text-xs font-black text-slate-600 uppercase tracking-widest"
-                  >
-                    No matching records discovered inside current rolling window
-                    array.
+              {currentLogs.map((log) => (
+                <tr
+                  key={log.id}
+                  onClick={() => setSelectedLogModal(log)}
+                  className="hover:bg-slate-950/30 transition-colors cursor-pointer group"
+                >
+                  <td className="p-4 text-center">
+                    {log.is_worked ? (
+                      <CheckCircle
+                        size={16}
+                        className="text-emerald-500 mx-auto"
+                      />
+                    ) : (
+                      <Circle size={16} className="text-slate-700 mx-auto" />
+                    )}
+                  </td>
+                  <td className="p-4 text-xs font-bold text-slate-400 uppercase">
+                    {formatPST(log.last_verified_at || log.created_at)}
+                  </td>
+                  <td className="p-4 font-black text-xs text-blue-500 flex items-center gap-1.5">
+                    <MapPin size={12} />
+                    {log.store}
+                  </td>
+                  <td className="p-4 font-black text-xs uppercase text-slate-200">
+                    {log.brand}{" "}
+                    <span className="text-slate-500 font-bold ml-1">
+                      {log.pack_type}
+                    </span>
+                  </td>
+                  <td className="p-4 text-center">
+                    <span
+                      className={`px-2 py-1 rounded-md text-[9px] font-mono font-black border ${(log.verification_count || 1) > 3 ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-slate-950 text-slate-400 border-slate-800"}`}
+                    >
+                      {log.verification_count || 1}x Days
+                    </span>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* DRILL DOWN LOG ENTRY MODAL SCREEN */}
+      {/* DRILL DOWN DETAILED MODAL SCREEN */}
       {currentModalData && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-md"
             onClick={() => setSelectedLogModal(null)}
           />
-          <div className="relative bg-slate-900 border border-slate-800 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+          <div className="relative bg-slate-900 border border-slate-800 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
             <header className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
               <div>
-                <h2 className="text-xl font-black text-slate-100 uppercase italic tracking-tighter">
+                <h2 className="text-xl font-black text-slate-100 uppercase italic">
                   Store{" "}
                   <span className="text-blue-500">
                     {currentModalData.store}
                   </span>
                 </h2>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                  Audit Trail
+                <p className="text-[10px] font-black text-slate-500 uppercase">
+                  Audit Track History
                 </p>
               </div>
               <button
                 onClick={() => setSelectedLogModal(null)}
-                className="p-2 bg-slate-950 text-slate-400 rounded-xl border border-slate-800 hover:text-red-500 transition-all cursor-pointer"
+                className="p-2 text-slate-400 hover:text-red-500 cursor-pointer"
               >
-                <X size={20} />
+                ✕
               </button>
             </header>
 
-            <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar text-xs">
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
               <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-4">
                 <div className="flex justify-between items-center">
-                  <div className="flex flex-col space-y-1">
-                    <span className="text-slate-500 block font-black uppercase text-[8px]">
+                  <div>
+                    <span className="text-slate-500 block font-black text-[8px] uppercase">
                       Product Name
                     </span>
                     <span className="text-sm font-black text-slate-200 uppercase">
                       {currentModalData.brand} {currentModalData.pack_type}
                     </span>
                   </div>
-
                   {isManagement && (
                     <button
                       type="button"
@@ -753,11 +595,7 @@ export default function InsightsPage() {
                           setReasonModalId(currentModalData.id);
                         }
                       }}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
-                        currentModalData.is_worked
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                          : "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:border-amber-400 hover:bg-amber-500/20"
-                      }`}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase border cursor-pointer ${currentModalData.is_worked ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}
                     >
                       {currentModalData.is_worked
                         ? "✓ Open Issue"
@@ -768,59 +606,32 @@ export default function InsightsPage() {
 
                 <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-900">
                   <div>
-                    <span className="text-slate-500 block font-black uppercase text-[8px]">
-                      Logged Timestamp
+                    <span className="text-slate-500 block font-black text-[8px] uppercase">
+                      First Logged
                     </span>
                     <span className="font-bold text-slate-300">
-                      {formatPST(currentModalData.created_at)} PST
+                      {formatPST(currentModalData.created_at)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block font-black uppercase text-[8px]">
-                      Status Rank
+                    <span className="text-slate-500 block font-black text-[8px] uppercase">
+                      Last Re-Verified
                     </span>
-                    <span
-                      className={`font-black uppercase text-[10px] ${currentModalData.is_worked ? "text-emerald-400" : "text-amber-400"}`}
-                    >
-                      {currentModalData.is_worked ? "Resolved" : "Active Gap"}
+                    <span className="font-bold text-slate-300">
+                      {formatPST(
+                        currentModalData.last_verified_at ||
+                          currentModalData.created_at,
+                      )}
                     </span>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-1 pt-2 border-t border-slate-900/50">
-                  <span className="text-slate-500 block font-black uppercase text-[8px]">
-                    Merchandiser
-                  </span>
-                  <span className="font-bold text-slate-300 uppercase">
-                    {currentModalData.user_name || "Field Agent"}
-                  </span>
                 </div>
 
                 {currentModalData.notes && (
-                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 italic text-slate-400 leading-relaxed space-y-1">
-                    <span className="text-slate-500 block font-black uppercase text-[7px] not-italic">
-                      Observations Feed
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 italic text-slate-400 space-y-1">
+                    <span className="text-slate-500 block font-black text-[7px] not-italic uppercase">
+                      Observations Feed Ledger
                     </span>
                     <p>"{currentModalData.notes}"</p>
-                  </div>
-                )}
-
-                {currentModalData.is_worked && currentModalData.updated_by && (
-                  <div className="p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-xl text-[10px] font-bold text-slate-400 space-y-1">
-                    <p className="uppercase text-emerald-400 tracking-wider font-black text-[8px]">
-                      Operational Closeout Signature
-                    </p>
-                    <p>
-                      Validated By:{" "}
-                      <span className="text-slate-200 uppercase">
-                        {currentModalData.updated_by}
-                      </span>
-                    </p>
-                    {currentModalData.updated_at && (
-                      <p className="text-[9px] text-slate-500">
-                        Timestamp: {formatPST(currentModalData.updated_at)} PST
-                      </p>
-                    )}
                   </div>
                 )}
               </div>
@@ -829,7 +640,7 @@ export default function InsightsPage() {
         </div>
       )}
 
-      {/* --- CLOSURE REASON INTERCEPT SUB-MODAL Window --- */}
+      {/* REASON SUB-MODAL */}
       {reasonModalId && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
           <div
@@ -839,21 +650,16 @@ export default function InsightsPage() {
               setValidationReason("");
             }}
           />
-          <div className="relative bg-slate-900 border border-slate-800 w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden p-6 space-y-6 animate-in zoom-in-95 duration-150">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-blue-500 text-[10px] font-black uppercase tracking-widest">
-                <ClipboardCheck size={12} /> Reason Input Required
-              </div>
-              <h3 className="text-xl font-black text-white uppercase italic tracking-tight">
-                Validate & Close
-              </h3>
-            </div>
+          <div className="relative bg-slate-900 border border-slate-800 w-full max-w-sm rounded-[2rem] p-6 space-y-6">
+            <h3 className="text-xl font-black text-white uppercase italic">
+              Validate & Close Gap
+            </h3>
             <textarea
               autoFocus
               value={validationReason}
               onChange={(e) => setValidationReason(e.target.value)}
-              placeholder="Enter specific resolution actions (e.g., Backstock packed out, order quantity adjusted)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-200 focus:outline-none focus:border-blue-600 min-h-[100px] resize-none font-bold placeholder:text-slate-600"
+              placeholder="Enter resolution actions..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-200 min-h-[100px] font-bold"
             />
             <div className="flex gap-3">
               <button
@@ -862,14 +668,14 @@ export default function InsightsPage() {
                   setReasonModalId(null);
                   setValidationReason("");
                 }}
-                className="flex-1 py-3 bg-slate-950 text-slate-500 text-[10px] font-black uppercase rounded-xl border border-slate-800 transition-all cursor-pointer hover:text-slate-300"
+                className="flex-1 py-3 bg-slate-950 text-slate-500 text-[10px] font-black uppercase rounded-xl border border-slate-800"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmValidation}
-                className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl shadow-lg shadow-blue-600/20 transition-all cursor-pointer hover:brightness-110 active:scale-[0.98]"
+                className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl"
               >
                 Confirm Close
               </button>

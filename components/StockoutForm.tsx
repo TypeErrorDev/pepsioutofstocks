@@ -9,6 +9,7 @@ import {
   X,
   CheckCircle2,
   ChevronRight,
+  Layers,
 } from "lucide-react";
 
 const PACK_TYPES = [
@@ -26,9 +27,7 @@ const PACK_TYPES = [
   "1.25L",
   "Singles",
 ];
-
 const LOCATIONS = ["Main Shelf", "Coolers"];
-
 const ROOT_CAUSES = [
   "Warehouse OOS",
   "Ordering Error",
@@ -39,34 +38,29 @@ const ROOT_CAUSES = [
 export default function StockoutForm() {
   const { addLog, profile, logs } = useTracker();
 
-  // Form States
   const [brand, setBrand] = useState("");
   const [type, setType] = useState("");
   const [store, setStore] = useState("");
   const [location, setLocation] = useState("");
-  const [cause, setCause] = useState("Item In Backstock");
+  const [cause, setCause] = useState("Ordering Error");
   const [notes, setNotes] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isDuplicatedFlash, setIsDuplicatedFlash] = useState(false);
 
-  // Autocomplete UI States
   const [showSuggestions, setShowSuggestions] = useState(false);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  // 1. Extract distinct existing brands from your live database logs
   const distinctBrands = useMemo(() => {
     if (!logs) return [];
     const unique = new Set<string>();
     logs.forEach((log) => {
-      if (log.brand && log.brand.trim() !== "") {
-        unique.add(log.brand.trim());
-      }
+      if (log.brand) unique.add(log.brand.trim());
     });
     return Array.from(unique).sort();
   }, [logs]);
 
-  // 2. Filter predictions dynamically as the user types
   const filteredSuggestions = useMemo(() => {
     if (!brand.trim()) return [];
     return distinctBrands.filter(
@@ -76,7 +70,6 @@ export default function StockoutForm() {
     );
   }, [brand, distinctBrands]);
 
-  // 3. Close the predictive dropdown cleanly if clicking outside the input area
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -92,46 +85,33 @@ export default function StockoutForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!brand.trim() || !store.trim() || !type || !location) {
-      alert(
-        "Please complete Brand / SKU, Pack Type, Store Identity, and Store Location before submitting.",
-      );
-      return;
-    }
+    if (!brand.trim() || !store.trim() || !type || !location) return;
 
     setIsSubmitting(true);
     setShowSuggestions(false);
     try {
-      await addLog({
+      const result = await addLog({
         brand: brand.trim(),
-        product: brand.trim(),
         pack_type: type,
-        store: store,
+        store: store.trim(),
         location,
         root_cause: cause,
         notes,
         gpid: profile?.gpid ?? null,
       });
 
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
+      if (result?.duplicated) {
+        setIsDuplicatedFlash(true);
+        setTimeout(() => setIsDuplicatedFlash(false), 2200);
+      } else {
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2200);
+      }
 
-      // Reset fields for the next entry
       setBrand("");
       setNotes("");
-      setCause("Ordering Error");
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === "object"
-            ? JSON.stringify(err)
-            : String(err);
-
-      console.error("Log tracking transaction failed:", err);
-      alert(
-        `Submission failed: ${message}. Please check the console or network tab for details.`,
-      );
+      console.error(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -139,20 +119,27 @@ export default function StockoutForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 relative">
-      {/* Success Overlay */}
+      {/* STANDARD SUCCESS MODAL OVERLAY */}
       {showSuccess && (
-        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center animate-in zoom-in duration-300">
-          <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 border border-emerald-500/30">
-            <CheckCircle2 size={32} className="text-emerald-500" />
-          </div>
+        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
+          <CheckCircle2 size={32} className="text-emerald-500 mb-2" />
           <span className="text-[10px] font-black text-slate-50 uppercase tracking-[0.4em]">
-            Entry Synced
+            New Gap Synced
+          </span>
+        </div>
+      )}
+
+      {/* DEDUPLICATION OVERLAY */}
+      {isDuplicatedFlash && (
+        <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
+          <Layers size={32} className="text-blue-500 mb-2 animate-bounce" />
+          <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] text-center px-4">
+            Gap Re-verified (+1 Day Streak)
           </span>
         </div>
       )}
 
       <div className="space-y-5">
-        {/* BRAND INPUT WITH PREDICTIVE DROPDOWN */}
         <div className="space-y-1 relative" ref={autocompleteRef}>
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Brand / SKU
@@ -164,8 +151,8 @@ export default function StockoutForm() {
             />
             <input
               type="text"
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold placeholder:text-slate-500/50 transition-all"
-              placeholder="e.g. Starry, Pepsi, Dew"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase"
+              placeholder="ex: Pepsi, Diet Coke, etc."
               value={brand}
               onChange={(e) => {
                 setBrand(e.target.value);
@@ -173,32 +160,28 @@ export default function StockoutForm() {
               }}
               onFocus={() => setShowSuggestions(true)}
               required
-              disabled={isSubmitting}
               autoComplete="off"
             />
           </div>
-
-          {/* FLOATING SUGGESTIONS MENU */}
           {showSuggestions && filteredSuggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-2 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl max-h-48 overflow-y-auto z-40 divide-y divide-slate-900 custom-scrollbar animate-in fade-in slide-in-from-top-1 duration-150">
-              {filteredSuggestions.map((suggestion) => (
+            <div className="absolute left-0 right-0 top-full mt-2 bg-slate-950 border border-slate-800 rounded-2xl max-h-48 overflow-y-auto z-40 divide-y divide-slate-900">
+              {filteredSuggestions.map((s) => (
                 <button
-                  key={suggestion}
+                  key={s}
                   type="button"
                   onClick={() => {
-                    setBrand(suggestion);
+                    setBrand(s);
                     setShowSuggestions(false);
                   }}
-                  className="w-full text-left px-5 py-3 text-xs font-black text-slate-300 hover:text-white hover:bg-slate-900 transition-colors uppercase tracking-wide"
+                  className="w-full text-left px-5 py-3 text-xs font-black text-slate-300 hover:bg-slate-900 uppercase"
                 >
-                  {suggestion}
+                  {s}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* PACK TYPE SELECTOR */}
         <div className="space-y-2">
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Pack Type
@@ -208,13 +191,8 @@ export default function StockoutForm() {
               <button
                 key={pType}
                 type="button"
-                disabled={isSubmitting}
                 onClick={() => setType(pType)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
-                  type === pType
-                    ? "bg-pepsi-blue border-pepsi-blue text-white shadow-lg shadow-pepsi-blue/20"
-                    : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400 disabled:opacity-50"
-                }`}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${type === pType ? "bg-pepsi-blue border-pepsi-blue text-white" : "bg-slate-950 border-slate-800 text-slate-500"}`}
               >
                 {pType}
               </button>
@@ -222,7 +200,6 @@ export default function StockoutForm() {
           </div>
         </div>
 
-        {/* LOCATION SELECTOR */}
         <div className="space-y-2">
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Store Location
@@ -232,13 +209,8 @@ export default function StockoutForm() {
               <button
                 key={loc}
                 type="button"
-                disabled={isSubmitting}
                 onClick={() => setLocation(loc)}
-                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${
-                  location === loc
-                    ? "bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                    : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-400 disabled:opacity-50"
-                }`}
+                className={`py-2.5 text-[10px] font-black rounded-xl border transition-all ${location === loc ? "bg-emerald-600 border-emerald-600 text-white" : "bg-slate-950 border-slate-800 text-slate-500"}`}
               >
                 {loc}
               </button>
@@ -246,38 +218,26 @@ export default function StockoutForm() {
           </div>
         </div>
 
-        {/* STORE IDENTITY INPUT */}
         <div className="space-y-1">
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Store Identity
           </label>
-          <div className="relative group">
+          <div className="relative">
             <MapPin
-              className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-pepsi-blue transition-colors"
+              className="absolute left-4 top-3.5 text-slate-500"
               size={14}
             />
             <input
               type="text"
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 pr-10 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold transition-all"
-              placeholder="e.g. Safeway #3213"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase"
+              placeholder="ex: Safeway #1143, Walmart #5678, etc."
               value={store}
               onChange={(e) => setStore(e.target.value)}
               required
-              disabled={isSubmitting}
             />
-            {store && !isSubmitting && (
-              <button
-                type="button"
-                onClick={() => setStore("")}
-                className="absolute right-3 top-3 p-1 rounded-lg bg-slate-800 text-slate-500 hover:text-slate-50 hover:bg-red-500/20 transition-all cursor-pointer"
-              >
-                <X size={14} />
-              </button>
-            )}
           </div>
         </div>
 
-        {/* ROOT CAUSE */}
         <div className="space-y-1">
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Logistical Cause
@@ -288,13 +248,12 @@ export default function StockoutForm() {
               size={16}
             />
             <select
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold appearance-none cursor-pointer disabled:opacity-50"
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold appearance-none cursor-pointer"
               value={cause}
               onChange={(e) => setCause(e.target.value)}
-              disabled={isSubmitting}
             >
               {ROOT_CAUSES.map((c) => (
-                <option key={c} value={c} className="bg-slate-950">
+                <option key={c} value={c}>
                   {c}
                 </option>
               ))}
@@ -306,7 +265,6 @@ export default function StockoutForm() {
           </div>
         </div>
 
-        {/* OBSERVATIONS */}
         <div className="space-y-1">
           <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
             Field Observations
@@ -317,11 +275,10 @@ export default function StockoutForm() {
               size={16}
             />
             <textarea
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none focus:border-pepsi-blue text-sm font-bold min-h-20 transition-all disabled:opacity-50"
-              placeholder="Specific notes (e.g. promo velocity surge)..."
+              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-20"
+              placeholder="Specific notes..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              disabled={isSubmitting}
             />
           </div>
         </div>
@@ -330,22 +287,9 @@ export default function StockoutForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl shadow-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group"
       >
-        {isSubmitting ? (
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            <span className="tracking-widest">SYNCING</span>
-          </div>
-        ) : (
-          <>
-            LOG FIELD ENTRY
-            <CheckCircle2
-              size={18}
-              className="group-hover:scale-110 transition-transform"
-            />
-          </>
-        )}
+        {isSubmitting ? "SYNCING..." : "LOG FIELD GAP / VERIFY"}
       </button>
     </form>
   );

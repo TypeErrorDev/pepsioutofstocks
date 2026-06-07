@@ -10,13 +10,7 @@ import React, {
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
-// --- STRICT SYSTEM TYPES ---
-export type UserRole =
-  | "admin"
-  | "team_lead"
-  | "sales_rep"
-  | "merchandiser"
-  | "user";
+export type UserRole = "admin" | "team_lead" | "sales_rep" | "user";
 
 export interface Profile {
   id: string;
@@ -31,18 +25,17 @@ export interface StockoutLog {
   id: string;
   store: string;
   brand: string;
-  product?: string;
   pack_type: string;
-  location: string;
   root_cause: string;
   notes: string | null;
-  gpid?: string | null;
   is_worked: boolean;
   is_hidden: boolean;
   user_name: string;
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  last_verified_at: string; // Tracked for deduplication
+  verification_count: number; // Tracked for inflation reduction
 }
 
 interface TrackerContextType {
@@ -61,23 +54,16 @@ interface TrackerContextType {
       | "updated_at"
       | "user_name"
       | "updated_by"
+      | "last_verified_at"
+      | "verification_count"
     >,
-  ) => Promise<{ success: boolean }>;
+  ) => Promise<{ success: boolean; duplicated: boolean }>;
   toggleWorkedStatus: (
     id: string,
     currentStatus: boolean,
     reason?: string,
   ) => Promise<void>;
   hideLog: (id: string, reason: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (
-    email: string,
-    password: string,
-    full_name: string,
-    gpid: string,
-    role: UserRole,
-  ) => Promise<void>;
-  signOut: () => Promise<void>;
   supabase: typeof supabase;
 }
 
@@ -89,7 +75,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<StockoutLog[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // --- CORE SYSTEM DATA FETCHERS ---
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -100,7 +85,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       if (data) setProfile(data as Profile);
     } catch (e) {
-      console.error("Profile core synchronization exception:", e);
+      console.error("Profile synchronization exception:", e);
     }
   };
 
@@ -114,15 +99,14 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       if (data) setLogs(data as StockoutLog[]);
     } catch (e) {
-      console.error("Logs database fetching exception:", e);
+      console.error("Logs fetching exception:", e);
     }
   }, []);
 
-  // --- RESILIENT REALTIME NETWORKING & MOBILE BACKGROUND LIFECYCLE ---
+  // Realtime Subscriptions
   useEffect(() => {
     if (!user) return;
-
-    let channel = supabase
+    const channel = supabase
       .channel("realtime_logs")
       .on(
         "postgres_changes",
@@ -130,47 +114,14 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         () => {
           fetchLogs();
         },
-      );
-
-    channel.subscribe();
-
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === "visible") {
-        console.log(
-          "Device focus restored. Re-authenticating database websocket pipe...",
-        );
-
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (session) {
-          fetchLogs();
-
-          supabase.removeChannel(channel);
-          channel = supabase
-            .channel("realtime_logs")
-            .on(
-              "postgres_changes",
-              { event: "*", schema: "public", table: "logs" },
-              () => {
-                fetchLogs();
-              },
-            );
-          channel.subscribe();
-        }
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+      )
+      .subscribe();
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       supabase.removeChannel(channel);
     };
   }, [user, fetchLogs]);
 
-  // --- AUTH SUBSCRIPTION ARCHITECTURE ---
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -182,9 +133,9 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
           await Promise.all([fetchProfile(session.user.id), fetchLogs()]);
         }
       } catch (error) {
-        console.error("Auth security engine initialization failure:", error);
+        console.error("Auth init failure:", error);
       } finally {
-        loading && setLoading(false);
+        setLoading(false);
       }
     };
     initializeAuth();
@@ -205,36 +156,57 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     return () => authListener.subscription.unsubscribe();
   }, [fetchLogs]);
 
-  // --- INTERACTIVE OPERATIONS METHODS (WITH HARD TIMEOUT GUARDS) ---
+  // --- SMART INTEGRATED LOG ENGINE (INFLATION PROTECTION) ---
   const addLog = async (logData: any) => {
-    const networkTimeout = new Promise((_, reject) =>
-      setTimeout(
-        () => reject(new Error("Database write transaction timeout")),
-        8000,
-      ),
-    );
-
     try {
-      const dbInsertTask = supabase.from("logs").insert([
+      // 1. Scan memory state for matching active unresolved item gaps
+      const existingActiveGap = logs.find(
+        (l) =>
+          !l.is_worked &&
+          !l.is_hidden &&
+          l.store.toString().trim() === logData.store.toString().trim() &&
+          l.brand.toLowerCase().trim() === logData.brand.toLowerCase().trim() &&
+          l.pack_type.toLowerCase().trim() ===
+            logData.pack_type.toLowerCase().trim(),
+      );
+
+      if (existingActiveGap) {
+        // 2. Intercept and update metadata values instead of pushing rows
+        const appendedNotes = logData.notes
+          ? `${existingActiveGap.notes || ""} [Re-verified Note: ${logData.notes}]`
+          : existingActiveGap.notes;
+
+        const { error } = await supabase
+          .from("logs")
+          .update({
+            verification_count: (existingActiveGap.verification_count || 1) + 1,
+            last_verified_at: new Date().toISOString(),
+            notes: appendedNotes,
+          })
+          .eq("id", existingActiveGap.id);
+
+        if (error) throw error;
+        await fetchLogs();
+        return { success: true, duplicated: true };
+      }
+
+      // 3. Brand New Gap: Write baseline database transaction record
+      const { error } = await supabase.from("logs").insert([
         {
           ...logData,
           user_name: profile?.full_name || "Unknown Operator",
           is_worked: false,
           is_hidden: false,
+          verification_count: 1,
+          last_verified_at: new Date().toISOString(),
         },
       ]);
 
-      const { error } = (await Promise.race([
-        dbInsertTask,
-        networkTimeout,
-      ])) as any;
       if (error) throw error;
-
       await fetchLogs();
-      return { success: true };
-    } catch (error: any) {
-      console.error("Critical submission disruption:", error);
-      await supabase.auth.getSession();
+      return { success: true, duplicated: false };
+    } catch (error) {
+      console.error("Critical submission fault:", error);
       throw error;
     }
   };
@@ -248,7 +220,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       const targetLog = logs.find((l) => l.id === id);
       let updatedNotes = targetLog?.notes || "";
 
-      // Append reason context note securely if provided on resolve transitions
       if (!currentStatus && reason && reason.trim() !== "") {
         updatedNotes = updatedNotes
           ? `${updatedNotes} [Resolution Note: ${reason.trim()}]`
@@ -289,63 +260,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       await fetchLogs();
     } catch (error) {
-      console.error("Failed to archive entry from feed view:", error);
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-    if (data.user) {
-      setUser(data.user);
-      await Promise.all([fetchProfile(data.user.id), fetchLogs()]);
-    }
-  };
-
-  const signUp = async (
-    email: string,
-    password: string,
-    full_name: string,
-    gpid: string,
-    role: UserRole,
-  ) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-
-    if (data.user) {
-      const { error: profileError } = await supabase.from("profiles").insert([
-        {
-          id: data.user.id,
-          username: email.split("@")[0],
-          full_name,
-          gpid,
-          role,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (profileError) throw profileError;
-      setUser(data.user);
-      await Promise.all([fetchProfile(data.user.id), fetchLogs()]);
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
-      setLogs([]);
-    } catch (error) {
-      console.error("Sign out failed:", error);
+      console.error("Failed to archive entry:", error);
     }
   };
 
@@ -360,9 +275,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         addLog,
         toggleWorkedStatus,
         hideLog,
-        signIn,
-        signUp,
-        signOut,
         supabase,
       }}
     >
@@ -373,10 +285,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
 export const useTracker = () => {
   const context = useContext(TrackerContext);
-  if (!context) {
-    throw new Error(
-      "useTracker hook execution context isolated outside target TrackerProvider boundary.",
-    );
-  }
+  if (!context) throw new Error("useTracker isolated outside Provider.");
   return context;
 };

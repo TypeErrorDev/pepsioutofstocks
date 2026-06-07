@@ -4,27 +4,24 @@ import { useTracker } from "@/context/TrackerContext";
 import {
   MapPin,
   X,
-  MessageSquare,
   CheckCircle2,
   Circle,
   ChevronLeft,
   ChevronRight,
-  UserCheck,
   Clock,
-  EyeOff,
+  Plus,
   ClipboardCheck,
 } from "lucide-react";
 
 export default function LogTable() {
-  const { logs, profile, loading, toggleWorkedStatus, hideLog } = useTracker();
+  const { logs, profile, loading, toggleWorkedStatus, addLog } = useTracker();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStore, setSelectedStore] = useState<string | null>(null);
   const [reasonModalId, setReasonModalId] = useState<string | null>(null);
-  const [tempReason, setTempReason] = useState("");
+  const [validationReason, setValidationReason] = useState("");
 
   const itemsPerPage = 10;
 
-  // --- SCROLL LOCK LOGIC ---
   useEffect(() => {
     if (selectedStore || reasonModalId) {
       document.body.style.overflow = "hidden";
@@ -71,11 +68,34 @@ export default function LogTable() {
     return activeLogs.filter((l) => l.store === selectedStore);
   }, [selectedStore, activeLogs]);
 
-  const submitHide = () => {
-    if (reasonModalId && tempReason.trim() !== "") {
-      hideLog(reasonModalId, tempReason);
+  // Handler to safely bump the verification count by 1 day using context deduplication logic
+  const handleAddDay = async (e: React.MouseEvent, log: any) => {
+    e.stopPropagation(); // Avoid triggering full store details overlay modal
+    try {
+      await addLog({
+        store: log.store,
+        brand: log.brand,
+        pack_type: log.pack_type,
+        location: log.location || "Main Shelf",
+        root_cause: log.root_cause,
+        notes: "Daily verification check-in",
+        gpid: profile?.gpid ?? null,
+      });
+    } catch (err) {
+      console.error("Failed to append verification day:", err);
+    }
+  };
+
+  const handleOpenCloseoutModal = (e: React.MouseEvent, logId: string) => {
+    e.stopPropagation();
+    setReasonModalId(logId);
+  };
+
+  const submitCloseoutWithReason = async () => {
+    if (reasonModalId) {
+      await toggleWorkedStatus(reasonModalId, false, validationReason);
       setReasonModalId(null);
-      setTempReason("");
+      setValidationReason("");
     }
   };
 
@@ -88,14 +108,13 @@ export default function LogTable() {
 
   return (
     <div className="flex flex-col h-full bg-app-card transition-colors">
-      {/* Table Header & Logic stays the same... */}
       <div className="p-5 border-b border-app-border flex justify-between items-center bg-app-card/50">
         <div className="flex flex-col">
           <h3 className="text-xs font-black text-app-text uppercase italic tracking-widest leading-none mb-1">
-            Live Inventory Logs
+            Live Inventory Gaps
           </h3>
           <span className="text-[8px] font-bold text-app-muted uppercase tracking-widest">
-            {filteredLogs.length} Active Records
+            {filteredLogs.length} Tracks Active
           </span>
         </div>
         <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
@@ -104,9 +123,9 @@ export default function LogTable() {
             disabled={currentPage === 1}
             className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30"
           >
-            <ChevronLeft size={14} />
+            ◀
           </button>
-          <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center">
+          <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center font-mono">
             {currentPage}/{totalPages || 1}
           </span>
           <button
@@ -114,7 +133,7 @@ export default function LogTable() {
             disabled={currentPage === totalPages || totalPages === 0}
             className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30"
           >
-            <ChevronRight size={14} />
+            ▶
           </button>
         </div>
       </div>
@@ -132,8 +151,11 @@ export default function LogTable() {
               <th className="p-4 text-[9px] font-black text-app-muted uppercase tracking-widest">
                 Store
               </th>
+              <th className="p-4 text-center text-[9px] font-black text-app-muted uppercase tracking-widest">
+                Streak
+              </th>
               <th className="p-4 text-right text-[9px] font-black text-app-muted uppercase tracking-widest">
-                Cause
+                Actions
               </th>
             </tr>
           </thead>
@@ -153,7 +175,7 @@ export default function LogTable() {
                   ) : (
                     <Circle
                       size={16}
-                      className="text-app-muted/30 mx-auto group-hover:text-pepsi-blue/50 transition-colors"
+                      className="text-app-muted/30 mx-auto group-hover:text-amber-500/50 transition-colors"
                     />
                   )}
                 </td>
@@ -171,12 +193,36 @@ export default function LogTable() {
                     </span>
                   </div>
                 </td>
-                <td className="p-4 text-right">
+                <td className="p-4 text-center">
                   <span
-                    className={`px-2 py-1 rounded-md text-[8px] font-black uppercase border inline-block ${log.root_cause === "Backstock" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-pepsi-red/10 text-pepsi-red border-pepsi-red/20"}`}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${log.verification_count > 3 ? "bg-red-500/10 text-red-400" : "bg-app-bg text-app-muted"}`}
                   >
-                    {log.root_cause}
+                    {log.verification_count || 1}d
                   </span>
+                </td>
+                <td className="p-4 text-right space-x-2">
+                  {!log.is_worked && (
+                    <>
+                      {/* ADD A DAY ACTION BUTTON */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleAddDay(e, log)}
+                        className="px-2 py-1 bg-slate-950 text-slate-400 hover:text-blue-500 hover:border-blue-500/30 border border-slate-800 text-[9px] font-black uppercase rounded-lg transition-all"
+                        title="Add Day Missing"
+                      >
+                        + 1 Day
+                      </button>
+
+                      {/* WORKED LOG STATUS ACTION BUTTON */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenCloseoutModal(e, log.id)}
+                        className="px-2 py-1 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 text-[9px] font-black uppercase rounded-lg transition-all"
+                      >
+                        Resolve
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
@@ -184,112 +230,41 @@ export default function LogTable() {
         </table>
       </div>
 
-      {/* Main Detail Modal */}
-      {selectedStore && modalData && (
-        <div className="fixed inset-0 z-999 flex items-center justify-center p-4 overflow-y-auto">
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-md"
-            onClick={() => setSelectedStore(null)}
-          />
-          <div className="relative bg-app-card border border-app-border w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <header className="p-6 border-b border-app-border flex justify-between items-center bg-app-card/50">
-              <div>
-                <h2 className="text-xl font-black text-app-text uppercase italic tracking-tighter">
-                  Store{" "}
-                  <span className="text-pepsi-blue">#{selectedStore}</span>
-                </h2>
-                <p className="text-[10px] font-black text-app-muted uppercase tracking-widest">
-                  Active Audit
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedStore(null)}
-                className="p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all"
-              >
-                <X size={20} />
-              </button>
-            </header>
-
-            <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar">
-              {modalData.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-4 bg-app-bg/30 rounded-2xl border border-app-border space-y-3"
-                >
-                  {/* Item Content Logic... */}
-                  <div className="flex justify-between items-start">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black text-app-text uppercase">
-                        {log.brand} {log.pack_type}
-                      </span>
-                      <div className="flex items-center gap-1 text-[9px] font-bold text-app-muted uppercase">
-                        <Clock size={10} />
-                        <span>{formatPST(log.created_at)} PST</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleWorkedStatus(log.id, log.is_worked);
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${log.is_worked ? "bg-emerald-500 text-white border-emerald-600 shadow-lg shadow-emerald-500/20" : "bg-app-card text-app-text border-app-border hover:border-pepsi-blue"}`}
-                      >
-                        {log.is_worked ? "Worked" : "Mark Worked"}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReasonModalId(log.id);
-                        }}
-                        className="p-1.5 bg-app-bg text-app-muted hover:text-pepsi-red border border-app-border rounded-lg transition-colors"
-                      >
-                        <EyeOff size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* REASON CAPTURE POPUP GATED INSIDE ACTION SHEET */}
       {reasonModalId && (
         <div className="fixed inset-0 z-1000 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setReasonModalId(null)}
           />
-          <div className="relative bg-app-card border border-app-border w-full max-w-sm rounded-4xl shadow-2xl overflow-hidden p-6 space-y-6">
+          <div className="relative bg-app-card border border-app-border w-full max-w-sm rounded-4xl shadow-2xl p-6 space-y-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-pepsi-blue text-[10px] font-black uppercase tracking-widest">
-                <ClipboardCheck size={12} /> Reason Code Required
+                <ClipboardCheck size={12} /> Verification Note Required
               </div>
               <h3 className="text-xl font-black text-app-text uppercase italic">
-                Archive Entry
+                Resolve Active Gap
               </h3>
             </div>
             <textarea
               autoFocus
-              value={tempReason}
-              onChange={(e) => setTempReason(e.target.value)}
-              placeholder="Why is this issue being closed?"
-              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none"
+              value={validationReason}
+              onChange={(e) => setValidationReason(e.target.value)}
+              placeholder="What resolution path fixed this item outage?"
+              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none font-bold"
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setReasonModalId(null)}
-                className="flex-1 py-3 bg-app-bg text-app-muted text-[10px] font-black uppercase rounded-xl border border-app-border transition-all"
+                className="flex-1 py-3 bg-app-bg text-app-muted text-[10px] font-black uppercase rounded-xl border border-app-border"
               >
                 Cancel
               </button>
               <button
-                onClick={submitHide}
-                disabled={tempReason.trim() === ""}
-                className="flex-1 py-3 bg-pepsi-blue text-white text-[10px] font-black uppercase rounded-xl shadow-lg hover:bg-pepsi-blue-dark transition-all disabled:opacity-50"
+                onClick={submitCloseoutWithReason}
+                className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl shadow-lg"
               >
-                Confirm
+                Confirm Resolve
               </button>
             </div>
           </div>
