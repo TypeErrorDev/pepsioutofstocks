@@ -31,6 +31,7 @@ export interface StockoutLog {
   store: string;
   brand: string;
   pack_type: string;
+  location: string;
   root_cause: string;
   notes: string | null;
   is_worked: boolean;
