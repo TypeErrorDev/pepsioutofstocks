@@ -93,6 +93,62 @@ export default function LogTable() {
     });
   };
 
+  const buildAuditHistory = (log: any) => {
+    const history: Array<{
+      label: string;
+      description: string;
+      timestamp?: string;
+    }> = [];
+
+    history.push({
+      label: "Created",
+      description: `Created by ${log.user_name || "Unknown user"}`,
+      timestamp: formatPST(log.created_at),
+    });
+
+    if (log.verification_count > 1) {
+      history.push({
+        label: "Verification",
+        description: `Verified ${log.verification_count - 1} more time${
+          log.verification_count - 1 === 1 ? "" : "s"
+        }`,
+        timestamp: log.updated_at ? formatPST(log.updated_at) : undefined,
+      });
+    }
+
+    if (log.updated_by) {
+      const actionLabel = log.is_worked ? "Resolved" : "Updated";
+      history.push({
+        label: actionLabel,
+        description: `${actionLabel} by ${log.updated_by}`,
+        timestamp: log.updated_at ? formatPST(log.updated_at) : undefined,
+      });
+    }
+
+    if (log.notes) {
+      const resolutionMatch = log.notes.match(/Resolution Note:\s*(.+)$/);
+      if (resolutionMatch) {
+        history.push({
+          label: "Resolution",
+          description: resolutionMatch[1].trim(),
+        });
+      }
+
+      const reverifyCount = (log.notes.match(/\[Re-verified Note:/g) || [])
+        .length;
+      if (reverifyCount > 0) {
+        history.push({
+          label: "Re-verify",
+          description: `${reverifyCount} re-verification note${
+            reverifyCount === 1 ? "" : "s"
+          } recorded`,
+        });
+      }
+    }
+
+    return history;
+  };
+
   // Dedicated detail drawer compilation matching the active query state
   const modalData = useMemo(() => {
     if (!selectedStore) return null;
@@ -349,6 +405,34 @@ export default function LogTable() {
                         Resolve Gap
                       </button>
                     )}
+                  </div>
+
+                  <div className="border-t border-app-border pt-4 mt-4">
+                    <div className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500 mb-3">
+                      Activity History
+                    </div>
+                    <div className="space-y-3">
+                      {buildAuditHistory(log).map((entry) => (
+                        <div
+                          key={`${log.id}-${entry.label}-${entry.timestamp || entry.description}`}
+                          className="space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-black">
+                              {entry.label}
+                            </span>
+                            {entry.timestamp ? (
+                              <span className="text-[9px] text-slate-500 uppercase tracking-[0.2em]">
+                                {entry.timestamp}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-[11px] text-app-text/80 leading-snug">
+                            {entry.description}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
