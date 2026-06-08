@@ -119,6 +119,26 @@ export default function StockoutForm() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const normalizeStoreName = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .map((word) =>
+        word
+          .split(/[-']/)
+          .map((segment) => {
+            if (segment.toLowerCase() === "qfc") {
+              return "QFC";
+            }
+            return (
+              segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase()
+            );
+          })
+          .join("-"),
+      )
+      .join(" ");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -127,10 +147,11 @@ export default function StockoutForm() {
         setAlertError("Store and broadcast message are required.");
         return;
       }
+      const normalizedStore = normalizeStoreName(store);
       setAlertError(null);
       setIsSubmitting(true);
       try {
-        await addSalesAlert(store.trim(), alertText.trim());
+        await addSalesAlert(normalizedStore, alertText.trim());
         setAlertText("");
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
@@ -151,12 +172,13 @@ export default function StockoutForm() {
 
     // Handle gap logging form submission
     if (!product.trim() || !store.trim() || !type || !location) return;
+    const normalizedStore = normalizeStoreName(store);
     setIsSubmitting(true);
     try {
       const result = await addLog({
         product: product.trim(),
         pack_type: type,
-        store: store.trim(),
+        store: normalizedStore,
         location,
         root_cause: cause,
         notes,
@@ -299,7 +321,7 @@ export default function StockoutForm() {
             <input
               type="text"
               className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase focus:border-blue-600"
-              placeholder="e.g. 5406"
+              placeholder="e.g. Safeway #1143"
               value={store}
               onChange={(e) => setStore(e.target.value)}
               required
@@ -338,7 +360,7 @@ export default function StockoutForm() {
                 <input
                   type="text"
                   className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase focus:border-blue-600"
-                  placeholder="e.g. STAR_PEPSI"
+                  placeholder="e.g. Pepsi, Diet Pepsi, etc"
                   value={product}
                   onChange={(e) => {
                     setProduct(e.target.value);

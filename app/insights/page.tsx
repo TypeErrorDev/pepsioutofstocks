@@ -113,6 +113,22 @@ export default function InsightsPage() {
     });
   };
 
+  const parseObservationLedger = (notes: string) => {
+    const reverifyNotes = Array.from(
+      notes.matchAll(/\[Re-verified Note:\s*([^\]]+)\]/gi),
+      (match) => match[1].trim(),
+    ).filter(Boolean);
+
+    if (reverifyNotes.length > 0) {
+      return reverifyNotes;
+    }
+
+    return notes
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  };
+
   const handleConfirmValidation = async () => {
     if (!reasonModalId) return;
     try {
@@ -658,11 +674,20 @@ export default function InsightsPage() {
                 </div>
 
                 {currentModalData.notes && (
-                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 italic text-slate-400 space-y-1">
-                    <span className="text-slate-500 block font-black text-[7px] not-italic uppercase">
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 text-slate-200 space-y-3">
+                    <span className="text-slate-500 block font-black text-[7px] uppercase tracking-[0.2em]">
                       Observations Feed Ledger
                     </span>
-                    <p>"{currentModalData.notes}"</p>
+                    {parseObservationLedger(currentModalData.notes).map(
+                      (entry, index) => (
+                        <p
+                          key={index}
+                          className="text-[11px] leading-snug text-slate-300"
+                        >
+                          {entry}
+                        </p>
+                      ),
+                    )}
                   </div>
                 )}
               </div>

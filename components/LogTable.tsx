@@ -178,11 +178,18 @@ export default function LogTable() {
   };
 
   const submitCloseoutWithReason = async () => {
-    if (reasonModalId) {
-      await toggleWorkedStatus(reasonModalId, false, validationReason);
-      setReasonModalId(null);
-      setValidationReason("");
-    }
+    if (!reasonModalId) return;
+
+    const targetLog = logs.find((l) => l.id === reasonModalId);
+    if (!targetLog) return;
+
+    await toggleWorkedStatus(
+      reasonModalId,
+      targetLog.is_worked,
+      validationReason,
+    );
+    setReasonModalId(null);
+    setValidationReason("");
   };
 
   if (loading)
@@ -466,12 +473,14 @@ export default function LogTable() {
             />
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setReasonModalId(null)}
                 className="flex-1 py-3 bg-app-bg text-app-muted text-[10px] font-black uppercase rounded-xl border border-app-border cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={submitCloseoutWithReason}
                 className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl shadow-lg cursor-pointer"
               >
