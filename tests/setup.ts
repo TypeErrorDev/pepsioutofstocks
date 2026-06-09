@@ -7,7 +7,7 @@ if (typeof global.ResizeObserver === "undefined") {
     observe() {}
     unobserve() {}
     disconnect() {}
-  } as any;
+  } as unknown as typeof ResizeObserver;
 }
 
 vi.mock("next/link", () => ({
