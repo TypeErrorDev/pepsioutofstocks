@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useTracker } from "@/context/TrackerContext";
+import { isManagement } from "@/lib/permissions";
+import { withTimeout } from "@/lib/withTimeout";
 import {
   Package,
   MapPin,
@@ -33,6 +35,10 @@ const ROOT_CAUSES = [
   "Ordering Error",
   "On Sale/Promotion",
   "Discontinued",
+  // "Backstock" = product is in the back room but not on the shelf. The
+  // dashboard/insights classify this as a "Service Gap" (vs. logistical gaps),
+  // so it must exist as a selectable cause for that breakdown to work.
+  "Backstock",
 ];
 
 export default function StockoutForm() {
@@ -69,12 +75,12 @@ export default function StockoutForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isDuplicatedFlash, setIsDuplicatedFlash] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  const canWriteAlerts =
-    profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
+  const canWriteAlerts = isManagement(profile);
 
   // Filter alerts matching whatever store number is typed in live with absolute null-safety guards
   const matchingActiveAlerts = useMemo(() => {
@@ -151,7 +157,11 @@ export default function StockoutForm() {
       setAlertError(null);
       setIsSubmitting(true);
       try {
-        await addSalesAlert(normalizedStore, alertText.trim());
+        await withTimeout(
+          addSalesAlert(normalizedStore, alertText.trim()),
+          15000,
+          "Broadcast timed out. Please try again.",
+        );
         setAlertText("");
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
@@ -173,17 +183,24 @@ export default function StockoutForm() {
     // Handle gap logging form submission
     if (!product.trim() || !store.trim() || !type || !location) return;
     const normalizedStore = normalizeStoreName(store);
+    setSubmitError(null);
     setIsSubmitting(true);
     try {
-      const result = await addLog({
-        product: product.trim(),
-        pack_type: type,
-        store: normalizedStore,
-        location,
-        root_cause: cause,
-        notes,
-        gpid: profile?.gpid ?? null,
-      });
+      // withTimeout guarantees the button can never spin forever, even if the
+      // underlying request stalls.
+      const result = await withTimeout(
+        addLog({
+          product: product.trim(),
+          pack_type: type,
+          store: normalizedStore,
+          location,
+          root_cause: cause,
+          notes,
+          gpid: profile?.gpid ?? null,
+        }),
+        15000,
+        "Logging timed out. Please check your connection and try again.",
+      );
 
       if (result?.duplicated) {
         setIsDuplicatedFlash(true);
@@ -197,6 +214,9 @@ export default function StockoutForm() {
       setNotes("");
     } catch (err) {
       console.error(err);
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to log gap. Please retry.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -207,7 +227,11 @@ export default function StockoutForm() {
     setAlertError(null);
     setIsAlertActionSubmitting(true);
     try {
-      await resolveSalesAlert(alertId, alertResolutionText.trim(), close);
+      await withTimeout(
+        resolveSalesAlert(alertId, alertResolutionText.trim(), close),
+        15000,
+        "Update timed out. Please try again.",
+      );
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 2000);
       setActiveAlertActionId(null);
@@ -279,7 +303,7 @@ export default function StockoutForm() {
                     Broadcast Alert
                   </span>
                 </div>
-                <p>"{alert.alert_text}"</p>
+                <p>&ldquo;{alert.alert_text}&rdquo;</p>
                 <span className="text-[8px] font-black uppercase text-slate-500 block mt-1.5">
                   Author: {alert.author_name}
                 </span>
@@ -500,7 +524,7 @@ export default function StockoutForm() {
                     className="space-y-2 rounded-3xl bg-slate-900/90 p-3 border border-slate-800"
                   >
                     <p className="text-slate-200 text-sm font-bold">
-                      "{alert.alert_text}"
+                      &ldquo;{alert.alert_text}&rdquo;
                     </p>
                     <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-black">
                       Created by {alert.author_name}
@@ -603,10 +627,16 @@ export default function StockoutForm() {
           </div>
         )}
 
+        {submitError && activeFormMode === "gap" && (
+          <p className="text-[10px] text-rose-400 font-black uppercase tracking-[0.2em] text-center">
+            {submitError}
+          </p>
+        )}
+
         <button
           type="submit"
           disabled={isSubmitting}
-          className={`w-full text-white font-black py-4 rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group cursor-pointer ${activeFormMode === "alert" ? "bg-blue-600 shadow-xl shadow-blue-600/10" : "bg-pepsi-blue"}`}
+          className={`w-full text-white font-black py-4 rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${activeFormMode === "alert" ? "bg-blue-600 shadow-xl shadow-blue-600/10" : "bg-pepsi-blue"}`}
         >
           {isSubmitting
             ? "SYNCING PROCESS..."
