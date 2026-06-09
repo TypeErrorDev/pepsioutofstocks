@@ -24,6 +24,7 @@ const PACK_TYPES = [
   "4 Pack",
   "64oz",
   "28oz",
+  "24oz",
   "20oz",
   "2L",
   "1.25L",
