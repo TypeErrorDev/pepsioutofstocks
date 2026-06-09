@@ -2,8 +2,11 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useTracker, type StockoutLog } from "@/context/TrackerContext";
+import { supabase } from "@/lib/supabase";
 import { isManagement } from "@/lib/permissions";
 import { formatPST } from "@/lib/format";
+import type { PromoCalendarRow } from "@/lib/analytics";
+import InsightsAnalytics from "@/components/InsightsAnalytics";
 import {
   Search,
   ArrowLeft,
@@ -45,9 +48,33 @@ export default function InsightsPage() {
   const [reasonModalId, setReasonModalId] = useState<string | null>(null);
   const [validationReason, setValidationReason] = useState("");
 
+  // Promo calendar for the promo-impact analytics. Loaded here (not in the
+  // shared TrackerContext) so the live auth/logging path stays untouched, and
+  // failures degrade gracefully to an empty list.
+  const [promos, setPromos] = useState<PromoCalendarRow[]>([]);
+
   const itemsPerPage = 10;
 
   const userIsManagement = isManagement(profile);
+
+  useEffect(() => {
+    if (!userIsManagement) return;
+    let active = true;
+    supabase
+      .from("promo_calendar")
+      .select("*")
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          console.error("Failed to load promo calendar:", error);
+          return;
+        }
+        setPromos((data as PromoCalendarRow[]) ?? []);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userIsManagement]);
 
   useEffect(() => {
     if (selectedLogModal || reasonModalId) {
@@ -448,6 +475,9 @@ export default function InsightsPage() {
           )}
         </div>
       </div>
+
+      {/* AT-A-GLANCE ANALYTICS (clickable tiles -> charted modals) */}
+      <InsightsAnalytics logs={filteredLogs} promos={promos} />
 
       {/* VELOCITY LEDGER CORES */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
