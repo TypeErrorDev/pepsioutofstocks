@@ -1,13 +1,13 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { useTracker } from "@/context/TrackerContext";
+import { useTracker, type StockoutLog } from "@/context/TrackerContext";
+import { isManagement } from "@/lib/permissions";
+import { formatPST } from "@/lib/format";
 import {
   MapPin,
   X,
   CheckCircle2,
   Circle,
-  ChevronLeft,
-  ChevronRight,
   ClipboardCheck,
   Search,
 } from "lucide-react";
@@ -36,18 +36,12 @@ export default function LogTable() {
     };
   }, [selectedStore, reasonModalId]);
 
-  // Reset pagination index to page 1 whenever the query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [currentStoreInput]);
-
   const activeLogs = useMemo(
     () => logs.filter((log) => !log.is_hidden),
     [logs],
   );
 
-  const isManagement =
-    profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
+  const userIsManagement = isManagement(profile);
 
   // --- HYBRID ROUTE FILTERING SYSTEM ---
   const finalFilteredLogs = useMemo(() => {
@@ -65,12 +59,12 @@ export default function LogTable() {
     }
 
     // SCENARIO B: No store search query -> Enforce default user ownership constraints
-    if (!isManagement) {
+    if (!userIsManagement) {
       data = data.filter((log) => log.user_name === profile?.full_name);
     }
 
     return data;
-  }, [activeLogs, isManagement, profile, currentStoreInput]);
+  }, [activeLogs, userIsManagement, profile, currentStoreInput]);
 
   // --- PAGINATION MATHEMATICS ---
   const totalPages = Math.ceil(finalFilteredLogs.length / itemsPerPage);
@@ -81,19 +75,7 @@ export default function LogTable() {
     );
   }, [finalFilteredLogs, currentPage]);
 
-  const formatPST = (dateString: string | undefined) => {
-    if (!dateString) return "";
-    return new Date(dateString).toLocaleString("en-US", {
-      timeZone: "America/Los_Angeles",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  const buildAuditHistory = (log: any) => {
+  const buildAuditHistory = (log: StockoutLog) => {
     const history: Array<{
       label: string;
       description: string;
@@ -155,7 +137,7 @@ export default function LogTable() {
     return activeLogs.filter((l) => l.store === selectedStore);
   }, [selectedStore, activeLogs]);
 
-  const handleAddDay = async (e: React.MouseEvent, log: any) => {
+  const handleAddDay = async (e: React.MouseEvent, log: StockoutLog) => {
     e.stopPropagation();
     try {
       await addLog({
@@ -221,13 +203,19 @@ export default function LogTable() {
           <input
             type="text"
             value={currentStoreInput}
-            onChange={(e) => setCurrentStoreInput(e.target.value)}
+            onChange={(e) => {
+              setCurrentStoreInput(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="TYPE CURRENT STORE NUMBER..."
             className="w-full bg-slate-950 border border-slate-850 p-2 rounded-xl pl-9 pr-8 text-[10px] font-black tracking-wider text-slate-200 placeholder:text-slate-700 outline-none focus:border-blue-600 uppercase transition-all"
           />
           {currentStoreInput && (
             <button
-              onClick={() => setCurrentStoreInput("")}
+              onClick={() => {
+                setCurrentStoreInput("");
+                setCurrentPage(1);
+              }}
               className="absolute right-2.5 top-2.5 text-slate-600 hover:text-slate-400 transition-colors"
             >
               <X size={12} />
