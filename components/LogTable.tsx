@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useTracker, type StockoutLog } from "@/context/TrackerContext";
 import { isManagement } from "@/lib/permissions";
 import { formatPST } from "@/lib/format";
+import { episodesForItem, summarizeEpisodes } from "@/lib/analytics";
 import {
   MapPin,
   X,
@@ -15,18 +16,18 @@ import {
 export default function LogTable() {
   const { logs, profile, loading, toggleWorkedStatus, addLog } = useTracker();
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedStore, setSelectedStore] = useState<string | null>(null);
+  const [selectedLog, setSelectedLog] = useState<StockoutLog | null>(null);
   const [reasonModalId, setReasonModalId] = useState<string | null>(null);
   const [validationReason, setValidationReason] = useState("");
 
   // Live store input filter state
-  const [currentStoreInput, setCurrentStoreInput] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   const itemsPerPage = 10;
 
   // --- SCROLL LOCK BOUNDARY ---
   useEffect(() => {
-    if (selectedStore || reasonModalId) {
+    if (selectedLog || reasonModalId) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -34,7 +35,7 @@ export default function LogTable() {
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [selectedStore, reasonModalId]);
+  }, [selectedLog, reasonModalId]);
 
   const activeLogs = useMemo(
     () => logs.filter((log) => !log.is_hidden),
@@ -48,14 +49,17 @@ export default function LogTable() {
     // Isolate basic unhidden logs
     let data = activeLogs;
 
-    // SCENARIO A: A store search query is active -> Open the gates to see ALL matching rows
-    if (currentStoreInput.trim() !== "") {
-      return data.filter((log) =>
-        log.store
-          .toString()
-          .toLowerCase()
-          .includes(currentStoreInput.trim().toLowerCase()),
-      );
+    // SCENARIO A: a search query is active -> match across store, product, and
+    // pack type. Every whitespace-separated term must appear, so "5406 pepsi"
+    // narrows to Pepsi logs at store 5406. Opens the gates to all matching rows.
+    const query = searchInput.trim().toLowerCase();
+    if (query !== "") {
+      const terms = query.split(/\s+/);
+      return data.filter((log) => {
+        const haystack =
+          `${log.store} ${log.product} ${log.pack_type}`.toLowerCase();
+        return terms.every((term) => haystack.includes(term));
+      });
     }
 
     // SCENARIO B: No store search query -> Enforce default user ownership constraints
@@ -64,7 +68,7 @@ export default function LogTable() {
     }
 
     return data;
-  }, [activeLogs, userIsManagement, profile, currentStoreInput]);
+  }, [activeLogs, userIsManagement, profile, searchInput]);
 
   // --- PAGINATION MATHEMATICS ---
   const totalPages = Math.ceil(finalFilteredLogs.length / itemsPerPage);
@@ -131,11 +135,30 @@ export default function LogTable() {
     return history;
   };
 
-  // Dedicated detail drawer compilation matching the active query state
-  const modalData = useMemo(() => {
-    if (!selectedStore) return null;
-    return activeLogs.filter((l) => l.store === selectedStore);
-  }, [selectedStore, activeLogs]);
+  // Resolve the freshest copy of the clicked log (e.g. after a realtime update)
+  // so the detail drawer shows just that one item.
+  const modalLog = useMemo(() => {
+    if (!selectedLog) return null;
+    return logs.find((l) => l.id === selectedLog.id) || selectedLog;
+  }, [selectedLog, logs]);
+
+  // Every past episode of this exact item (store + product + pack) for the
+  // recurrence history shown in the drawer.
+  const itemEpisodes = useMemo(
+    () =>
+      modalLog
+        ? episodesForItem(logs, {
+            store: modalLog.store,
+            product: modalLog.product,
+            packType: modalLog.pack_type,
+          })
+        : [],
+    [modalLog, logs],
+  );
+  const episodeSummary = useMemo(
+    () => summarizeEpisodes(itemEpisodes),
+    [itemEpisodes],
+  );
 
   const handleAddDay = async (e: React.MouseEvent, log: StockoutLog) => {
     e.stopPropagation();
@@ -202,18 +225,18 @@ export default function LogTable() {
           />
           <input
             type="text"
-            value={currentStoreInput}
+            value={searchInput}
             onChange={(e) => {
-              setCurrentStoreInput(e.target.value);
+              setSearchInput(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="TYPE CURRENT STORE NUMBER..."
+            placeholder="SEARCH STORE OR PRODUCT..."
             className="w-full bg-slate-950 border border-slate-850 p-2 rounded-xl pl-9 pr-8 text-[10px] font-black tracking-wider text-slate-200 placeholder:text-slate-700 outline-none focus:border-blue-600 uppercase transition-all"
           />
-          {currentStoreInput && (
+          {searchInput && (
             <button
               onClick={() => {
-                setCurrentStoreInput("");
+                setSearchInput("");
                 setCurrentPage(1);
               }}
               className="absolute right-2.5 top-2.5 text-slate-600 hover:text-slate-400 transition-colors"
@@ -272,7 +295,7 @@ export default function LogTable() {
               currentLogs.map((log) => (
                 <tr
                   key={log.id}
-                  onClick={() => setSelectedStore(log.store)}
+                  onClick={() => setSelectedLog(log)}
                   className="hover:bg-app-bg/40 transition-colors cursor-pointer group"
                 >
                   <td className="p-4 text-center">
@@ -348,89 +371,170 @@ export default function LogTable() {
         </table>
       </div>
 
-      {/* Main Location Gaps Breakdown Drawer */}
-      {selectedStore && modalData && (
+      {/* Single-item detail drawer */}
+      {modalLog && (
         <div className="fixed inset-0 z-999 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-md"
-            onClick={() => setSelectedStore(null)}
+            onClick={() => setSelectedLog(null)}
           />
-          <div className="relative bg-app-card border border-app-border w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            <header className="p-6 border-b border-app-border flex justify-between items-center bg-app-card/50">
-              <div>
-                <h2 className="text-xl font-black text-app-text uppercase italic tracking-tighter">
-                  Store{" "}
-                  <span className="text-pepsi-blue">#{selectedStore}</span>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${modalLog.product} ${modalLog.pack_type} at store ${modalLog.store}`}
+            className="relative bg-app-card border border-app-border w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+          >
+            <header className="p-6 border-b border-app-border flex justify-between items-start gap-3 bg-app-card/50">
+              <div className="min-w-0">
+                <h2 className="text-xl font-black text-app-text uppercase italic tracking-tighter truncate">
+                  {modalLog.product}{" "}
+                  <span className="text-app-muted">{modalLog.pack_type}</span>
                 </h2>
-                <p className="text-[10px] font-black text-app-muted uppercase tracking-widest">
-                  Active Gaps Audit
+                <p className="text-[10px] font-black text-app-muted uppercase tracking-widest flex items-center gap-1.5">
+                  <MapPin size={11} className="text-pepsi-blue" />
+                  Store #{modalLog.store}
                 </p>
               </div>
               <button
-                onClick={() => setSelectedStore(null)}
-                className="p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all cursor-pointer"
+                onClick={() => setSelectedLog(null)}
+                aria-label="Close"
+                className="shrink-0 p-2 bg-app-bg text-app-text rounded-xl border border-app-border hover:text-pepsi-red transition-all cursor-pointer"
               >
                 <X size={20} />
               </button>
             </header>
 
-            <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar">
-              {modalData.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-4 bg-app-bg/30 rounded-2xl border border-app-border space-y-3"
+            <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar">
+              {/* Status + resolve */}
+              <div className="flex items-center justify-between gap-3">
+                <span
+                  className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${
+                    modalLog.is_worked
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                      : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                  }`}
                 >
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-black text-app-text uppercase">
-                        {log.product} {log.pack_type}
-                      </span>
-                      <span className="text-[9px] text-app-muted font-bold uppercase mt-1">
-                        Streak: {log.verification_count || 1} Days Out of Stock
-                      </span>
-                      <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tight mt-0.5">
-                        Logged By: {log.user_name}
-                      </span>
-                    </div>
-                    {!log.is_worked && (
-                      <button
-                        onClick={(e) => handleOpenCloseoutModal(e, log.id)}
-                        className="px-3 py-1.5 rounded-lg text-[9px] font-black bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white transition-all cursor-pointer"
-                      >
-                        Resolve Gap
-                      </button>
-                    )}
-                  </div>
+                  {modalLog.is_worked ? "Resolved" : "Open Gap"}
+                </span>
+                {!modalLog.is_worked && (
+                  <button
+                    onClick={(e) => handleOpenCloseoutModal(e, modalLog.id)}
+                    className="px-3 py-1.5 rounded-lg text-[9px] font-black bg-emerald-600/10 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-white transition-all cursor-pointer"
+                  >
+                    Resolve Gap
+                  </button>
+                )}
+              </div>
 
-                  <div className="border-t border-app-border pt-4 mt-4">
-                    <div className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500 mb-3">
-                      Activity History
-                    </div>
-                    <div className="space-y-3">
-                      {buildAuditHistory(log).map((entry) => (
-                        <div
-                          key={`${log.id}-${entry.label}-${entry.timestamp || entry.description}`}
-                          className="space-y-1"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-black">
-                              {entry.label}
-                            </span>
-                            {entry.timestamp ? (
-                              <span className="text-[9px] text-slate-500 uppercase tracking-[0.2em]">
-                                {entry.timestamp}
+              {/* This item's details */}
+              <div className="grid grid-cols-2 gap-3">
+                <Detail
+                  label="Streak"
+                  value={`${modalLog.verification_count || 1} day${
+                    (modalLog.verification_count || 1) === 1 ? "" : "s"
+                  } out`}
+                />
+                <Detail label="Location" value={modalLog.location} />
+                <Detail label="Root Cause" value={modalLog.root_cause} />
+                <Detail label="Logged By" value={modalLog.user_name} />
+                <Detail
+                  label="First Logged"
+                  value={formatPST(modalLog.created_at)}
+                />
+                <Detail
+                  label="Last Verified"
+                  value={formatPST(modalLog.last_verified_at || modalLog.created_at)}
+                />
+              </div>
+
+              {/* History at this store (recurrence across episodes) */}
+              <div className="border-t border-app-border pt-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500">
+                    History at this store
+                  </div>
+                  {episodeSummary.occurrences > 1 && (
+                    <span className="text-[9px] font-black uppercase tracking-[0.15em] text-app-muted">
+                      {episodeSummary.occurrences}× · {episodeSummary.totalDays}{" "}
+                      day{episodeSummary.totalDays === 1 ? "" : "s"} out
+                    </span>
+                  )}
+                </div>
+                {episodeSummary.occurrences > 1 ? (
+                  <div className="space-y-2">
+                    {itemEpisodes.map((ep) => (
+                      <div
+                        key={ep.id}
+                        className={`flex items-center gap-2.5 rounded-xl border p-2.5 ${
+                          ep.id === modalLog.id
+                            ? "border-pepsi-blue/40 bg-pepsi-blue/5"
+                            : "border-app-border bg-app-bg/30"
+                        }`}
+                      >
+                        {ep.is_worked ? (
+                          <CheckCircle2
+                            size={14}
+                            className="text-emerald-500 shrink-0"
+                          />
+                        ) : (
+                          <Circle
+                            size={14}
+                            className="text-amber-500/60 shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-bold text-app-text">
+                            {formatPST(ep.created_at)}
+                            {ep.id === modalLog.id && (
+                              <span className="ml-2 text-[8px] font-black uppercase tracking-[0.2em] text-pepsi-blue">
+                                Viewing
                               </span>
-                            ) : null}
-                          </div>
-                          <p className="text-[11px] text-app-text/80 leading-snug">
-                            {entry.description}
+                            )}
+                          </p>
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-app-muted">
+                            {ep.verification_count || 1} day
+                            {(ep.verification_count || 1) === 1 ? "" : "s"} out ·{" "}
+                            {ep.is_worked ? "Resolved" : "Open"}
                           </p>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  <p className="text-[11px] font-bold text-app-muted">
+                    First time this item has been logged at this store.
+                  </p>
+                )}
+              </div>
+
+              {/* Activity history */}
+              <div className="border-t border-app-border pt-4">
+                <div className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500 mb-3">
+                  Activity History
                 </div>
-              ))}
+                <div className="space-y-3">
+                  {buildAuditHistory(modalLog).map((entry) => (
+                    <div
+                      key={`${entry.label}-${entry.timestamp || entry.description}`}
+                      className="space-y-1"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-black">
+                          {entry.label}
+                        </span>
+                        {entry.timestamp ? (
+                          <span className="text-[9px] text-slate-500 uppercase tracking-[0.2em]">
+                            {entry.timestamp}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-[11px] text-app-text/80 leading-snug">
+                        {entry.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -478,6 +582,17 @@ export default function LogTable() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-app-bg/30 rounded-xl border border-app-border p-3">
+      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-app-muted mb-0.5">
+        {label}
+      </p>
+      <p className="text-xs font-bold text-app-text break-words">{value}</p>
     </div>
   );
 }
