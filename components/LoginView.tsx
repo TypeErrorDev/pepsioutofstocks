@@ -1,10 +1,9 @@
 "use client";
 import React, { useState } from "react";
-import { useTracker, UserRole } from "@/context/TrackerContext";
-import { LogIn, Key, Mail, ShieldCheck, Fingerprint } from "lucide-react";
+import { useTracker, type UserRole } from "@/context/TrackerContext";
+import { Fingerprint } from "lucide-react";
 
 export default function LoginView() {
-  // FIX: Ensure 'signIn' and 'signUp' exactly match your TrackerContext exports
   const { signIn, signUp } = useTracker();
 
   const [isRegistering, setIsRegistering] = useState(false);
@@ -25,11 +24,11 @@ export default function LoginView() {
         alert("Success! Account created.");
         setIsRegistering(false);
       } else {
-        // This will now find the function cleanly!
         await signIn(email, password);
       }
-    } catch (err: any) {
-      alert("System Error: " + err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert("System Error: " + message);
     } finally {
       setIsSubmitting(false);
     }
@@ -136,8 +135,16 @@ export default function LoginView() {
               />
             </div>
 
-            <button className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl hover:brightness-110 transition-all shadow-lg shadow-pepsi-blue/20">
-              {isRegistering ? "CREATE ACCOUNT" : "AUTHENTICATE"}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-pepsi-blue text-white font-black py-4 rounded-2xl hover:brightness-110 transition-all shadow-lg shadow-pepsi-blue/20 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSubmitting
+                ? "PLEASE WAIT..."
+                : isRegistering
+                  ? "CREATE ACCOUNT"
+                  : "AUTHENTICATE"}
             </button>
           </form>
 

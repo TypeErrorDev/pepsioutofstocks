@@ -43,23 +43,10 @@ CREATE TABLE sales_alerts (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- stockouts table  
-CREATE TABLE stockouts (
-  id SERIAL PRIMARY KEY,
-  user_name TEXT NOT NULL REFERENCES profiles(id),
-  product TEXT NOT NULL,
-  store TEXT NOT NULL,
-  days_oos INTEGER NOT NULL,
-  priority TEXT NOT NULL,
-  is_archived BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
 -- Enable Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales_alerts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE stockouts ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (adjust as needed for your security requirements)
 CREATE POLICY "Users can view their own profile" ON profiles FOR SELECT USING (auth.uid()::text = id);
@@ -71,7 +58,4 @@ CREATE POLICY "Authenticated users can update logs" ON logs FOR UPDATE USING (au
 
 CREATE POLICY "Authenticated users can view sales alerts" ON sales_alerts FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "Authenticated users can insert sales alerts" ON sales_alerts FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Users can view their own stockouts" ON stockouts FOR SELECT USING (user_name = auth.uid()::text);
-CREATE POLICY "Users can insert their own stockouts" ON stockouts FOR INSERT WITH CHECK (user_name = auth.uid()::text);
-CREATE POLICY "Users can update their own stockouts" ON stockouts FOR UPDATE USING (user_name = auth.uid()::text);
+CREATE POLICY "Authenticated users can update sales alerts" ON sales_alerts FOR UPDATE USING (auth.uid() IS NOT NULL);

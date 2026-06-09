@@ -1,14 +1,8 @@
 "use client";
 import React from "react";
 import { useTracker } from "@/context/TrackerContext";
-import {
-  Package,
-  AlertCircle,
-  CheckCircle2,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle,
-} from "lucide-react";
+import { isManagement } from "@/lib/permissions";
+import { Package, AlertCircle, CheckCircle2, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import StockoutForm from "./StockoutForm";
 import LogTable from "./LogTable";
@@ -16,8 +10,7 @@ import LogTable from "./LogTable";
 export default function Dashboard() {
   const { profile, logs } = useTracker();
 
-  const canViewInsights =
-    profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
+  const canViewInsights = isManagement(profile);
 
   // Logic: Only count logs that are NOT hidden
   const activeLogs = logs.filter((l) => !l.is_hidden);

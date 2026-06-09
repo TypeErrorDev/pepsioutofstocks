@@ -39,7 +39,7 @@ describe("StockoutForm", () => {
 
     await screen.findByText(/Alert Content Message/i);
 
-    fireEvent.change(screen.getByPlaceholderText(/e.g. 5406/i), {
+    fireEvent.change(screen.getByPlaceholderText(/e.g. Safeway/i), {
       target: { value: "   " },
     });
     fireEvent.change(
@@ -68,7 +68,7 @@ describe("StockoutForm", () => {
     fireEvent.click(
       screen.getByRole("button", { name: /broadcast rep alert/i }),
     );
-    fireEvent.change(screen.getByPlaceholderText(/e.g. 5406/i), {
+    fireEvent.change(screen.getByPlaceholderText(/e.g. Safeway/i), {
       target: { value: "5406" },
     });
     fireEvent.change(
@@ -96,10 +96,10 @@ describe("StockoutForm", () => {
   it("does not submit a gap log when required gap fields are missing", () => {
     render(<StockoutForm />);
 
-    fireEvent.change(screen.getByPlaceholderText(/e.g. STAR_PEPSI/i), {
+    fireEvent.change(screen.getByPlaceholderText(/e.g. Pepsi/i), {
       target: { value: "STAR_PEPSI" },
     });
-    fireEvent.change(screen.getByPlaceholderText(/e.g. 5406/i), {
+    fireEvent.change(screen.getByPlaceholderText(/e.g. Safeway/i), {
       target: { value: "5406" },
     });
 

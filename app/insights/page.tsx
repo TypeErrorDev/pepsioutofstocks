@@ -1,22 +1,17 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useTracker } from "@/context/TrackerContext";
+import { useTracker, type StockoutLog } from "@/context/TrackerContext";
+import { isManagement } from "@/lib/permissions";
+import { formatPST } from "@/lib/format";
 import {
   Search,
-  X,
   ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
   SlidersHorizontal,
-  FileSpreadsheet,
   MapPin,
   TrendingUp,
-  FilterX,
   Circle,
   CheckCircle,
-  ClipboardCheck,
-  Layers,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -42,7 +37,9 @@ export default function InsightsPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedLogModal, setSelectedLogModal] = useState<any | null>(null);
+  const [selectedLogModal, setSelectedLogModal] = useState<StockoutLog | null>(
+    null,
+  );
 
   // Closeout Reason Sub-Modal States
   const [reasonModalId, setReasonModalId] = useState<string | null>(null);
@@ -50,8 +47,7 @@ export default function InsightsPage() {
 
   const itemsPerPage = 10;
 
-  const isManagement =
-    profile && ["admin", "team_lead", "sales_rep"].includes(profile.role);
+  const userIsManagement = isManagement(profile);
 
   useEffect(() => {
     if (selectedLogModal || reasonModalId) {
@@ -68,50 +64,6 @@ export default function InsightsPage() {
     if (!selectedLogModal) return null;
     return logs.find((l) => l.id === selectedLogModal.id) || selectedLogModal;
   }, [selectedLogModal, logs]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-app-bg text-app-text">
-        <p className="text-sm text-app-muted uppercase tracking-[0.3em] font-black">
-          Loading Insights...
-        </p>
-      </div>
-    );
-  }
-
-  if (!profile || !isManagement) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-app-bg text-app-text">
-        <div className="max-w-xl w-full bg-app-card border border-app-border rounded-3xl shadow-2xl p-10 text-center">
-          <h1 className="text-3xl font-black uppercase tracking-[0.2em] mb-4">
-            Access Denied
-          </h1>
-          <p className="text-sm text-app-muted mb-6">
-            Insights are only available to elevated users.
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-full bg-pepsi-blue px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-white hover:bg-blue-500"
-          >
-            Return to Dashboard
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const formatPST = (dateString: string | undefined) => {
-    if (!dateString) return "";
-    return new Date(dateString).toLocaleString("en-US", {
-      timeZone: "America/Los_Angeles",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
 
   const parseObservationLedger = (notes: string) => {
     const reverifyNotes = Array.from(
@@ -151,7 +103,7 @@ export default function InsightsPage() {
   const filteredLogs = useMemo(() => {
     let data = logs.filter((log) => !log.is_hidden);
 
-    if (!isManagement) {
+    if (!userIsManagement) {
       data = data.filter((log) => log.user_name === profile?.full_name);
     }
 
@@ -210,7 +162,7 @@ export default function InsightsPage() {
   }, [
     logs,
     profile,
-    isManagement,
+    userIsManagement,
     searchQuery,
     filterMode,
     statusFilter,
@@ -253,9 +205,10 @@ export default function InsightsPage() {
     return filteredLogs.slice(indexOfFirstItem, indexOfLastItem);
   }, [filteredLogs, indexOfFirstItem, indexOfLastItem]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
+  // Reset to the first page whenever the active filter set changes. Using the
+  // "adjust state during render" pattern (per the React docs) instead of an
+  // effect avoids an extra render pass and the set-state-in-effect lint rule.
+  const filterKey = [
     searchQuery,
     filterMode,
     statusFilter,
@@ -263,7 +216,46 @@ export default function InsightsPage() {
     timeUnit,
     startDate,
     endDate,
-  ]);
+  ].join("|");
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
+    setCurrentPage(1);
+  }
+
+  // Early returns live below every hook so the hook order stays identical on
+  // every render (React's rules-of-hooks). Returning above the hooks above would
+  // crash with "rendered more hooks than during the previous render".
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-app-bg text-app-text">
+        <p className="text-sm text-app-muted uppercase tracking-[0.3em] font-black">
+          Loading Insights...
+        </p>
+      </div>
+    );
+  }
+
+  if (!profile || !userIsManagement) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-app-bg text-app-text">
+        <div className="max-w-xl w-full bg-app-card border border-app-border rounded-3xl shadow-2xl p-10 text-center">
+          <h1 className="text-3xl font-black uppercase tracking-[0.2em] mb-4">
+            Access Denied
+          </h1>
+          <p className="text-sm text-app-muted mb-6">
+            Insights are only available to elevated users.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-full bg-pepsi-blue px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-white hover:bg-blue-500"
+          >
+            Return to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12 space-y-6 md:space-y-10 text-slate-100 bg-slate-950 min-h-screen">
@@ -567,7 +559,9 @@ export default function InsightsPage() {
                     )}
                   </td>
                   <td className="p-4 text-xs font-bold text-slate-400 uppercase">
-                    {formatPST(log.last_verified_at || log.created_at)}
+                    {formatPST(log.last_verified_at || log.created_at, {
+                      withYear: true,
+                    })}
                   </td>
                   <td className="p-4 font-black text-xs text-blue-500 flex items-center gap-1.5">
                     <MapPin size={12} />
@@ -632,7 +626,7 @@ export default function InsightsPage() {
                       {currentModalData.product} {currentModalData.pack_type}
                     </span>
                   </div>
-                  {isManagement && (
+                  {userIsManagement && (
                     <button
                       type="button"
                       onClick={() => {
@@ -657,7 +651,9 @@ export default function InsightsPage() {
                       First Logged
                     </span>
                     <span className="font-bold text-slate-300">
-                      {formatPST(currentModalData.created_at)}
+                      {formatPST(currentModalData.created_at, {
+                        withYear: true,
+                      })}
                     </span>
                   </div>
                   <div>
@@ -668,6 +664,7 @@ export default function InsightsPage() {
                       {formatPST(
                         currentModalData.last_verified_at ||
                           currentModalData.created_at,
+                        { withYear: true },
                       )}
                     </span>
                   </div>

@@ -45,6 +45,20 @@ export interface StockoutLog {
   verification_count: number; // Tracked for inflation reduction
 }
 
+/** Fields a caller supplies when logging a new gap; the rest are set server/context-side. */
+export type NewLogInput = Omit<
+  StockoutLog,
+  | "id"
+  | "is_worked"
+  | "is_hidden"
+  | "created_at"
+  | "updated_at"
+  | "user_name"
+  | "updated_by"
+  | "last_verified_at"
+  | "verification_count"
+>;
+
 export interface SalesAlert {
   id: string;
   store: string;
@@ -80,18 +94,7 @@ interface TrackerContextType {
     close: boolean,
   ) => Promise<void>;
   addLog: (
-    logData: Omit<
-      StockoutLog,
-      | "id"
-      | "is_worked"
-      | "is_hidden"
-      | "created_at"
-      | "updated_at"
-      | "user_name"
-      | "updated_by"
-      | "last_verified_at"
-      | "verification_count"
-    >,
+    logData: NewLogInput,
   ) => Promise<{ success: boolean; duplicated: boolean }>;
   toggleWorkedStatus: (
     id: string,
@@ -111,7 +114,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   const [salesAlerts, setSalesAlerts] = useState<SalesAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -123,7 +126,7 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("Profile synchronization exception:", e);
     }
-  };
+  }, []);
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -153,6 +156,18 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Load everything a signed-in user needs in one place.
+  const loadUserData = useCallback(
+    async (userId: string) => {
+      await Promise.all([
+        fetchProfile(userId),
+        fetchLogs(),
+        fetchSalesAlerts(),
+      ]);
+    },
+    [fetchProfile, fetchLogs, fetchSalesAlerts],
+  );
+
   // Realtime Subscriptions
   useEffect(() => {
     if (!user) return;
@@ -173,47 +188,58 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchLogs]);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+    let active = true;
+
+    // Initial session restore. This runs outside the auth callback, so it is
+    // safe to await Supabase queries here.
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!active) return;
         if (session?.user) {
           setUser(session.user);
-          await Promise.all([
-            fetchProfile(session.user.id),
-            fetchLogs(),
-            fetchSalesAlerts(),
-          ]);
+          void loadUserData(session.user.id);
         }
-      } catch (error) {
-        console.error("Auth init failure:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    initializeAuth();
+      })
+      .catch((error) => console.error("Auth init failure:", error))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
+    // IMPORTANT: keep this callback synchronous and never await Supabase calls
+    // inside it. supabase-js fires auth events while holding its internal auth
+    // lock, and every database request resolves its token via getSession()
+    // (which needs that same lock). Awaiting queries here can wedge the lock so
+    // that all later inserts/selects hang forever — the exact cause of the
+    // "log button spins and only a reload fixes it" bug. We defer data loading
+    // out of the callback with setTimeout(0) instead.
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" && session?.user) {
-          setUser(session.user);
-          await Promise.all([
-            fetchProfile(session.user.id),
-            fetchLogs(),
-            fetchSalesAlerts(),
-          ]);
-        } else if (event === "SIGNED_OUT") {
+      (event, session) => {
+        if (event === "SIGNED_OUT") {
           setUser(null);
           setProfile(null);
           setLogs([]);
           setSalesAlerts([]);
+          return;
+        }
+
+        if (!session?.user) return;
+        setUser(session.user);
+
+        if (event === "SIGNED_IN") {
+          const userId = session.user.id;
+          setTimeout(() => {
+            if (active) void loadUserData(userId);
+          }, 0);
         }
       },
     );
 
-    return () => authListener.subscription.unsubscribe();
-  }, [fetchLogs, fetchSalesAlerts]);
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, [loadUserData]);
 
   useEffect(() => {
     if (!user) return;
@@ -234,25 +260,15 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchSalesAlerts]);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-
-      if (data.session?.user) {
-        setUser(data.session.user);
-        await Promise.all([
-          fetchProfile(data.session.user.id),
-          fetchLogs(),
-          fetchSalesAlerts(),
-        ]);
-      }
-    } catch (error) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
       console.error("Sign-in failure:", error);
       throw error;
     }
+    // User state + data hydration are handled by the SIGNED_IN listener above.
   };
 
   const signUp = async (
@@ -313,12 +329,15 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         created_at: new Date().toISOString(),
       };
 
-      const result = await supabase.from("sales_alerts").insert([newAlert]);
-      const data = result.data as SalesAlert[] | null;
-      const error = result.error;
+      const { data, error } = await supabase
+        .from("sales_alerts")
+        .insert([newAlert])
+        .select("*")
+        .single();
       if (error) throw error;
-      if (data && data.length > 0) {
-        setSalesAlerts((current) => [...(current || []), data[0]]);
+      if (data) {
+        // Prepend so it matches the newest-first ordering used by fetchSalesAlerts.
+        setSalesAlerts((current) => [data as SalesAlert, ...(current || [])]);
       }
     } catch (error) {
       console.error("Failed to create sales alert:", error);
@@ -378,7 +397,9 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
   };
 
   // --- SMART INTEGRATED LOG ENGINE (INFLATION PROTECTION) ---
-  const addLog = async (logData: any) => {
+  const addLog = async (
+    logData: NewLogInput,
+  ): Promise<{ success: boolean; duplicated: boolean }> => {
     try {
       // 1. Scan memory state for matching active unresolved item gaps
       const existingActiveGap = logs.find(
