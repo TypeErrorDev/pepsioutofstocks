@@ -121,4 +121,40 @@ describe("LogTable detail drawer", () => {
     // The other product at the store is still excluded.
     expect(within(dialog).queryByText(/Mountain Dew/)).not.toBeInTheDocument();
   });
+
+  it("search narrows by store and product together", () => {
+    const logs = [
+      makeLog({ id: "1", store: "5406", product: "Pepsi" }),
+      makeLog({ id: "2", store: "5406", product: "Starry" }),
+      makeLog({ id: "3", store: "1143", product: "Pepsi" }),
+    ];
+    mockUseTracker.mockReturnValue({
+      logs,
+      profile: {
+        id: "u",
+        username: "qa",
+        full_name: "QA Lead",
+        gpid: "1",
+        role: "admin",
+        created_at: "",
+      },
+      loading: false,
+      toggleWorkedStatus: vi.fn(),
+      addLog: vi.fn(),
+    });
+
+    render(<LogTable />);
+
+    fireEvent.change(
+      screen.getByPlaceholderText(/search store or product/i),
+      { target: { value: "5406 pepsi" } },
+    );
+
+    // Only "5406 / Pepsi" survives: "5406 / Starry" lacks the product term and
+    // "1143 / Pepsi" lacks the store term.
+    expect(screen.getByText("5406")).toBeInTheDocument();
+    expect(screen.getByText(/Pepsi/)).toBeInTheDocument();
+    expect(screen.queryByText(/Starry/)).not.toBeInTheDocument();
+    expect(screen.queryByText("1143")).not.toBeInTheDocument();
+  });
 });

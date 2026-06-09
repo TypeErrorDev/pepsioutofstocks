@@ -21,7 +21,7 @@ export default function LogTable() {
   const [validationReason, setValidationReason] = useState("");
 
   // Live store input filter state
-  const [currentStoreInput, setCurrentStoreInput] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   const itemsPerPage = 10;
 
@@ -49,14 +49,17 @@ export default function LogTable() {
     // Isolate basic unhidden logs
     let data = activeLogs;
 
-    // SCENARIO A: A store search query is active -> Open the gates to see ALL matching rows
-    if (currentStoreInput.trim() !== "") {
-      return data.filter((log) =>
-        log.store
-          .toString()
-          .toLowerCase()
-          .includes(currentStoreInput.trim().toLowerCase()),
-      );
+    // SCENARIO A: a search query is active -> match across store, product, and
+    // pack type. Every whitespace-separated term must appear, so "5406 pepsi"
+    // narrows to Pepsi logs at store 5406. Opens the gates to all matching rows.
+    const query = searchInput.trim().toLowerCase();
+    if (query !== "") {
+      const terms = query.split(/\s+/);
+      return data.filter((log) => {
+        const haystack =
+          `${log.store} ${log.product} ${log.pack_type}`.toLowerCase();
+        return terms.every((term) => haystack.includes(term));
+      });
     }
 
     // SCENARIO B: No store search query -> Enforce default user ownership constraints
@@ -65,7 +68,7 @@ export default function LogTable() {
     }
 
     return data;
-  }, [activeLogs, userIsManagement, profile, currentStoreInput]);
+  }, [activeLogs, userIsManagement, profile, searchInput]);
 
   // --- PAGINATION MATHEMATICS ---
   const totalPages = Math.ceil(finalFilteredLogs.length / itemsPerPage);
@@ -222,18 +225,18 @@ export default function LogTable() {
           />
           <input
             type="text"
-            value={currentStoreInput}
+            value={searchInput}
             onChange={(e) => {
-              setCurrentStoreInput(e.target.value);
+              setSearchInput(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="TYPE CURRENT STORE NUMBER..."
+            placeholder="SEARCH STORE OR PRODUCT..."
             className="w-full bg-slate-950 border border-slate-850 p-2 rounded-xl pl-9 pr-8 text-[10px] font-black tracking-wider text-slate-200 placeholder:text-slate-700 outline-none focus:border-blue-600 uppercase transition-all"
           />
-          {currentStoreInput && (
+          {searchInput && (
             <button
               onClick={() => {
-                setCurrentStoreInput("");
+                setSearchInput("");
                 setCurrentPage(1);
               }}
               className="absolute right-2.5 top-2.5 text-slate-600 hover:text-slate-400 transition-colors"
