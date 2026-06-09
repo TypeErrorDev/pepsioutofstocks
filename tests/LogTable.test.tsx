@@ -64,4 +64,61 @@ describe("LogTable detail drawer", () => {
     // It shows item-level detail, not a store roll-up.
     expect(within(dialog).getByText(/Activity History/i)).toBeInTheDocument();
   });
+
+  it("shows recurrence history for that exact item at that store", () => {
+    const logs = [
+      makeLog({
+        id: "a",
+        store: "Safeway #100",
+        product: "Pepsi",
+        pack_type: "24 Pack",
+        verification_count: 2,
+        is_worked: true,
+        created_at: "2026-05-01T00:00:00Z",
+      }),
+      makeLog({
+        id: "b",
+        store: "Safeway #100",
+        product: "Pepsi",
+        pack_type: "24 Pack",
+        verification_count: 4,
+        is_worked: false,
+        created_at: "2026-06-01T00:00:00Z",
+      }),
+      // Different product at the same store must NOT appear in the drawer.
+      makeLog({
+        id: "c",
+        store: "Safeway #100",
+        product: "Mountain Dew",
+        pack_type: "24 Pack",
+        verification_count: 1,
+      }),
+    ];
+    mockUseTracker.mockReturnValue({
+      logs,
+      profile: {
+        id: "u",
+        username: "qa",
+        full_name: "QA Lead",
+        gpid: "1",
+        role: "admin",
+        created_at: "",
+      },
+      loading: false,
+      toggleWorkedStatus: vi.fn(),
+      addLog: vi.fn(),
+    });
+
+    render(<LogTable />);
+
+    // Click the open Pepsi episode (streak "4d" is unique in the table).
+    fireEvent.click(screen.getByText("4d"));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/History at this store/i)).toBeInTheDocument();
+    // The viewed episode is marked, and both Pepsi episodes are listed.
+    expect(within(dialog).getByText(/Viewing/i)).toBeInTheDocument();
+    // The other product at the store is still excluded.
+    expect(within(dialog).queryByText(/Mountain Dew/)).not.toBeInTheDocument();
+  });
 });

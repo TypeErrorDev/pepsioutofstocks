@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useTracker, type StockoutLog } from "@/context/TrackerContext";
 import { isManagement } from "@/lib/permissions";
 import { formatPST } from "@/lib/format";
+import { episodesForItem, summarizeEpisodes } from "@/lib/analytics";
 import {
   MapPin,
   X,
@@ -137,6 +138,24 @@ export default function LogTable() {
     if (!selectedLog) return null;
     return logs.find((l) => l.id === selectedLog.id) || selectedLog;
   }, [selectedLog, logs]);
+
+  // Every past episode of this exact item (store + product + pack) for the
+  // recurrence history shown in the drawer.
+  const itemEpisodes = useMemo(
+    () =>
+      modalLog
+        ? episodesForItem(logs, {
+            store: modalLog.store,
+            product: modalLog.product,
+            packType: modalLog.pack_type,
+          })
+        : [],
+    [modalLog, logs],
+  );
+  const episodeSummary = useMemo(
+    () => summarizeEpisodes(itemEpisodes),
+    [itemEpisodes],
+  );
 
   const handleAddDay = async (e: React.MouseEvent, log: StockoutLog) => {
     e.stopPropagation();
@@ -423,6 +442,66 @@ export default function LogTable() {
                   label="Last Verified"
                   value={formatPST(modalLog.last_verified_at || modalLog.created_at)}
                 />
+              </div>
+
+              {/* History at this store (recurrence across episodes) */}
+              <div className="border-t border-app-border pt-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500">
+                    History at this store
+                  </div>
+                  {episodeSummary.occurrences > 1 && (
+                    <span className="text-[9px] font-black uppercase tracking-[0.15em] text-app-muted">
+                      {episodeSummary.occurrences}× · {episodeSummary.totalDays}{" "}
+                      day{episodeSummary.totalDays === 1 ? "" : "s"} out
+                    </span>
+                  )}
+                </div>
+                {episodeSummary.occurrences > 1 ? (
+                  <div className="space-y-2">
+                    {itemEpisodes.map((ep) => (
+                      <div
+                        key={ep.id}
+                        className={`flex items-center gap-2.5 rounded-xl border p-2.5 ${
+                          ep.id === modalLog.id
+                            ? "border-pepsi-blue/40 bg-pepsi-blue/5"
+                            : "border-app-border bg-app-bg/30"
+                        }`}
+                      >
+                        {ep.is_worked ? (
+                          <CheckCircle2
+                            size={14}
+                            className="text-emerald-500 shrink-0"
+                          />
+                        ) : (
+                          <Circle
+                            size={14}
+                            className="text-amber-500/60 shrink-0"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-bold text-app-text">
+                            {formatPST(ep.created_at)}
+                            {ep.id === modalLog.id && (
+                              <span className="ml-2 text-[8px] font-black uppercase tracking-[0.2em] text-pepsi-blue">
+                                Viewing
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-app-muted">
+                            {ep.verification_count || 1} day
+                            {(ep.verification_count || 1) === 1 ? "" : "s"} out ·{" "}
+                            {ep.is_worked ? "Resolved" : "Open"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] font-bold text-app-muted">
+                    First time this item has been logged at this store.
+                  </p>
+                )}
               </div>
 
               {/* Activity history */}

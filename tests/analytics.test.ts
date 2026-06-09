@@ -6,10 +6,12 @@ import {
   chronicCount,
   chronicOffenders,
   daysBetween,
+  episodesForItem,
   isLogDuringPromo,
   normalizeName,
   promoOverlap,
   rootCauseBreakdown,
+  summarizeEpisodes,
   summarizeKpis,
   topProducts,
   trendByWeek,
@@ -225,5 +227,59 @@ describe("promoOverlap", () => {
     const out = promoOverlap([log()], []);
     expect(out.onPromo).toBe(0);
     expect(out.pct).toBe(0);
+  });
+});
+
+describe("episodesForItem / summarizeEpisodes", () => {
+  const logs = [
+    log({
+      store: "QFC #1",
+      product: "Pepsi",
+      pack_type: "24 Pack",
+      created_at: "2026-06-01T00:00:00Z",
+      verification_count: 2,
+      is_worked: true,
+    }),
+    // same SKU, messy case/whitespace
+    log({
+      store: "qfc #1 ",
+      product: " pepsi",
+      pack_type: "24 pack",
+      created_at: "2026-06-05T00:00:00Z",
+      verification_count: 3,
+      is_worked: false,
+    }),
+    log({ store: "QFC #1", product: "Pepsi", pack_type: "12 Pack" }), // different pack
+    log({ store: "Safeway #2", product: "Pepsi", pack_type: "24 Pack" }), // different store
+    log({
+      store: "QFC #1",
+      product: "Pepsi",
+      pack_type: "24 Pack",
+      is_hidden: true,
+    }), // archived
+  ];
+
+  it("matches the same SKU at the same store, case-insensitive, newest first, excluding archived", () => {
+    const eps = episodesForItem(logs, {
+      store: "QFC #1",
+      product: "Pepsi",
+      packType: "24 Pack",
+    });
+    expect(eps).toHaveLength(2);
+    expect(eps[0].created_at).toBe("2026-06-05T00:00:00Z");
+    expect(eps[1].created_at).toBe("2026-06-01T00:00:00Z");
+  });
+
+  it("summarizes occurrences, total outage days, and open count", () => {
+    const eps = episodesForItem(logs, {
+      store: "QFC #1",
+      product: "Pepsi",
+      packType: "24 Pack",
+    });
+    expect(summarizeEpisodes(eps)).toEqual({
+      occurrences: 2,
+      totalDays: 5,
+      openCount: 1,
+    });
   });
 });

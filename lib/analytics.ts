@@ -284,5 +284,47 @@ export function promoOverlap(
   };
 }
 
+/**
+ * Every non-archived episode of the same SKU (store + product + pack type) as
+ * the given item, newest first. Each episode is a separate row because the
+ * dedup engine starts a fresh log once a gap is resolved and recurs — so this
+ * is the recurrence history for one item at one store.
+ */
+export function episodesForItem<T extends AnalyticsLog>(
+  logs: T[],
+  item: { store: string; product: string; packType: string },
+): T[] {
+  const key = (s: string) => (s ?? "").trim().toLowerCase();
+  const store = key(item.store);
+  const product = key(item.product);
+  const pack = key(item.packType);
+  return logs
+    .filter(
+      (l) =>
+        !l.is_hidden &&
+        key(l.store) === store &&
+        key(l.product) === product &&
+        key(l.pack_type) === pack,
+    )
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export interface EpisodeSummary {
+  occurrences: number;
+  totalDays: number;
+  openCount: number;
+}
+
+export function summarizeEpisodes(episodes: AnalyticsLog[]): EpisodeSummary {
+  return {
+    occurrences: episodes.length,
+    totalDays: episodes.reduce(
+      (sum, e) => sum + Math.max(1, e.verification_count ?? 1),
+      0,
+    ),
+    openCount: episodes.filter((e) => !e.is_worked).length,
+  };
+}
+
 // Re-export so callers can use the richer type without importing two modules.
 export type { StockoutLog };
