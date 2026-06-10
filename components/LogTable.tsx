@@ -220,7 +220,7 @@ export default function LogTable() {
         {/* CURRENT LOCATION SEARCH FILTER BAR */}
         <div className="w-full sm:w-64 relative">
           <Search
-            className="absolute left-3 top-2.5 text-slate-600"
+            className="absolute left-3 top-2.5 text-app-subtle"
             size={14}
           />
           <input
@@ -231,7 +231,7 @@ export default function LogTable() {
               setCurrentPage(1);
             }}
             placeholder="SEARCH STORE OR PRODUCT..."
-            className="w-full bg-slate-950 border border-slate-850 p-2 rounded-xl pl-9 pr-8 text-[10px] font-black tracking-wider text-slate-200 placeholder:text-slate-700 outline-none focus:border-blue-600 uppercase transition-all"
+            className="w-full bg-app-inset border border-app-border p-2 rounded-xl pl-9 pr-8 text-[10px] font-black tracking-wider text-app-text placeholder:text-app-subtle outline-none focus:border-blue-600 uppercase transition-all"
           />
           {searchInput && (
             <button
@@ -239,7 +239,7 @@ export default function LogTable() {
                 setSearchInput("");
                 setCurrentPage(1);
               }}
-              className="absolute right-2.5 top-2.5 text-slate-600 hover:text-slate-400 transition-colors"
+              className="absolute right-2.5 top-2.5 text-app-subtle hover:text-app-muted transition-colors"
             >
               <X size={12} />
             </button>
@@ -338,7 +338,7 @@ export default function LogTable() {
                         <button
                           type="button"
                           onClick={(e) => handleAddDay(e, log)}
-                          className="px-2 py-1 bg-slate-950 text-slate-400 hover:text-blue-500 hover:border-blue-500/30 border border-slate-800 text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer"
+                          className="px-2 py-1 bg-app-inset text-app-muted hover:text-pepsi-blue hover:border-pepsi-blue/30 border border-app-border text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer"
                           title="Verify Gap Still Exists"
                         >
                           + 1 Day
@@ -359,7 +359,7 @@ export default function LogTable() {
               <tr>
                 <td
                   colSpan={5}
-                  className="p-20 text-center text-xs font-black text-slate-600 uppercase tracking-widest"
+                  className="p-20 text-center text-xs font-black text-app-subtle uppercase tracking-widest"
                 >
                   You have not logged any gaps yet. Use the form to the left to
                   add <br />
@@ -450,7 +450,7 @@ export default function LogTable() {
               {/* History at this store (recurrence across episodes) */}
               <div className="border-t border-app-border pt-4">
                 <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500">
+                  <div className="text-[10px] uppercase tracking-[0.2em] font-black text-app-muted">
                     History at this store
                   </div>
                   {episodeSummary.occurrences > 1 && (
@@ -509,7 +509,7 @@ export default function LogTable() {
 
               {/* Activity history */}
               <div className="border-t border-app-border pt-4">
-                <div className="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500 mb-3">
+                <div className="text-[10px] uppercase tracking-[0.2em] font-black text-app-muted mb-3">
                   Activity History
                 </div>
                 <div className="space-y-3">
@@ -519,11 +519,11 @@ export default function LogTable() {
                       className="space-y-1"
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-black">
+                        <span className="text-[9px] uppercase tracking-[0.2em] text-app-muted font-black">
                           {entry.label}
                         </span>
                         {entry.timestamp ? (
-                          <span className="text-[9px] text-slate-500 uppercase tracking-[0.2em]">
+                          <span className="text-[9px] text-app-muted uppercase tracking-[0.2em]">
                             {entry.timestamp}
                           </span>
                         ) : null}
@@ -561,7 +561,7 @@ export default function LogTable() {
               value={validationReason}
               onChange={(e) => setValidationReason(e.target.value)}
               placeholder="What resolution path fixed this item outage?"
-              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none font-bold placeholder:text-slate-700"
+              className="w-full bg-app-bg border border-app-border rounded-xl p-4 text-xs text-app-text focus:outline-none focus:border-pepsi-blue min-h-25 resize-none font-bold placeholder:text-app-subtle"
             />
             <div className="flex gap-3">
               <button

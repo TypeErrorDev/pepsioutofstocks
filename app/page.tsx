@@ -2,6 +2,7 @@
 import React from "react";
 import { useTracker } from "@/context/TrackerContext";
 import Dashboard from "@/components/Dashboard";
+import ThemeToggle from "@/components/ThemeToggle";
 import { LogOut, User } from "lucide-react";
 
 export default function Home() {
@@ -10,14 +11,16 @@ export default function Home() {
   const { profile, signOut } = useTracker();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 selection:bg-pepsi-blue/30">
+    <div className="min-h-screen bg-app-bg text-app-text selection:bg-pepsi-blue/30">
       {/* --- SINGLE PERSISTENT HEADER --- */}
       <div className="max-w-400 mx-auto p-4 md:p-8 lg:p-12 pb-0">
         <header className="relative z-50 flex flex-row items-center justify-end gap-6">
           <div className="flex items-center gap-4">
+            <ThemeToggle />
+
             {/* Identity Block */}
-            <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 p-1.5 pr-4 rounded-full shadow-lg">
-              <div className="w-10 h-10 bg-slate-950 border border-slate-800 rounded-full flex items-center justify-center text-pepsi-blue shadow-inner">
+            <div className="flex items-center gap-3 bg-app-card border border-app-border p-1.5 pr-4 rounded-full shadow-lg">
+              <div className="w-10 h-10 bg-app-inset border border-app-border rounded-full flex items-center justify-center text-pepsi-blue shadow-inner">
                 <User size={20} />
               </div>
               <div className="hidden sm:flex flex-col items-start leading-none pr-2">
@@ -33,7 +36,7 @@ export default function Home() {
             {/* PRONOUNCED SIGN OUT BUTTON */}
             <button
               onClick={signOut}
-              className="flex items-center gap-3 px-6 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 hover:text-pepsi-red hover:border-pepsi-red/30 transition-all active:scale-95 group shadow-xl"
+              className="flex items-center gap-3 px-6 py-3 bg-app-card border border-app-border rounded-2xl text-app-muted hover:text-pepsi-red hover:border-pepsi-red/30 transition-all active:scale-95 group shadow-xl"
             >
               <span className="text-[10px] font-black uppercase tracking-widest group-hover:text-pepsi-red transition-colors">
                 Sign Out

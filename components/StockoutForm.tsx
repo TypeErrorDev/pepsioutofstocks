@@ -255,14 +255,14 @@ export default function StockoutForm() {
     <div className="space-y-4">
       {/* ROLE SWITCHING TAB INTERFACES (ONLY RENDERED FOR SALES/ADMINS) */}
       {canWriteAlerts && (
-        <div className="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-slate-850 mb-2">
+        <div className="grid grid-cols-2 bg-app-inset p-1 rounded-xl border border-app-border mb-2">
           <button
             type="button"
             onClick={() => setActiveFormMode("gap")}
             className={`py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
               activeFormMode === "gap"
-                ? "bg-slate-800 text-white"
-                : "text-slate-500 hover:text-slate-300"
+                ? "bg-app-border text-app-text"
+                : "text-app-muted hover:text-app-text"
             }`}
           >
             Log Outage Gap
@@ -273,7 +273,7 @@ export default function StockoutForm() {
             className={`py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeFormMode === "alert"
                 ? "bg-blue-600 text-white shadow-md shadow-blue-600/15"
-                : "text-slate-500 hover:text-slate-300"
+                : "text-app-muted hover:text-app-text"
             }`}
           >
             <Megaphone size={12} /> Broadcast Rep Alert
@@ -294,18 +294,18 @@ export default function StockoutForm() {
             {matchingActiveAlerts.map((alert) => (
               <div
                 key={alert.id}
-                className="text-[11px] text-slate-300 font-medium leading-relaxed bg-slate-950/60 p-2.5 rounded-xl border border-slate-900"
+                className="text-[11px] text-app-text font-medium leading-relaxed bg-app-inset/60 p-2.5 rounded-xl border border-app-border"
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">
                     Store {alert.store}
                   </span>
-                  <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  <span className="text-[8px] font-black uppercase tracking-[0.2em] text-app-muted">
                     Broadcast Alert
                   </span>
                 </div>
                 <p>&ldquo;{alert.alert_text}&rdquo;</p>
-                <span className="text-[8px] font-black uppercase text-slate-500 block mt-1.5">
+                <span className="text-[8px] font-black uppercase text-app-muted block mt-1.5">
                   Author: {alert.author_name}
                 </span>
               </div>
@@ -316,16 +316,16 @@ export default function StockoutForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6 relative">
         {showSuccess && (
-          <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
+          <div className="absolute inset-0 bg-app-card/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
             <CheckCircle2 size={32} className="text-emerald-500 mb-2" />
-            <span className="text-[10px] font-black text-slate-50 uppercase tracking-[0.4em]">
+            <span className="text-[10px] font-black text-app-text uppercase tracking-[0.4em]">
               Transaction Completed
             </span>
           </div>
         )}
 
         {isDuplicatedFlash && (
-          <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
+          <div className="absolute inset-0 bg-app-card/95 backdrop-blur-md z-50 rounded-3xl flex flex-col items-center justify-center">
             <Layers size={32} className="text-blue-500 mb-2" />
             <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] text-center px-4">
               Gap Re-verified (+1 Day Streak)
@@ -335,17 +335,17 @@ export default function StockoutForm() {
 
         {/* SHARED STORE IDENTITY FIELD BASELINE */}
         <div className="space-y-1">
-          <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+          <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
             Store Identity Location
           </label>
           <div className="relative">
             <MapPin
-              className="absolute left-4 top-3.5 text-slate-500"
+              className="absolute left-4 top-3.5 text-app-muted"
               size={14}
             />
             <input
               type="text"
-              className="w-full bg-slate-950 text-slate-50 p-3.5 pl-10 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase focus:border-blue-600"
+              className="w-full bg-app-inset text-app-text p-3.5 pl-10 rounded-2xl border border-app-border outline-none text-sm font-bold uppercase focus:border-blue-600"
               placeholder="e.g. Safeway #1143"
               value={store}
               onChange={(e) => setStore(e.target.value)}
@@ -353,8 +353,8 @@ export default function StockoutForm() {
             />
           </div>
           {store.trim() && activeFormMode === "alert" && (
-            <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.3em] text-slate-400 mt-1">
-              <span className="font-black text-slate-200">
+            <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.3em] text-app-muted mt-1">
+              <span className="font-black text-app-text">
                 Broadcast target: {store.trim()}
               </span>
               {matchingActiveAlerts.length > 0 ? (
@@ -362,7 +362,7 @@ export default function StockoutForm() {
                   Active alert exists for this store
                 </span>
               ) : (
-                <span className="text-slate-500">
+                <span className="text-app-muted">
                   No existing alert for this store yet
                 </span>
               )}
@@ -374,17 +374,17 @@ export default function StockoutForm() {
           <div className="space-y-5">
             {/* PRODUCT SELECTION WITH AUTOCOMPLETE */}
             <div className="space-y-1 relative" ref={autocompleteRef}>
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+              <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
                 Product / SKU
               </label>
               <div className="relative">
                 <Package
-                  className="absolute left-4 top-3.5 text-slate-500"
+                  className="absolute left-4 top-3.5 text-app-muted"
                   size={16}
                 />
                 <input
                   type="text"
-                  className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold uppercase focus:border-blue-600"
+                  className="w-full bg-app-inset text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none text-sm font-bold uppercase focus:border-blue-600"
                   placeholder="e.g. Pepsi, Diet Pepsi, etc"
                   value={product}
                   onChange={(e) => {
@@ -397,7 +397,7 @@ export default function StockoutForm() {
                 />
               </div>
               {showSuggestions && filteredSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-2 bg-slate-950 border border-slate-800 rounded-2xl max-h-48 overflow-y-auto z-40 divide-y divide-slate-900">
+                <div className="absolute left-0 right-0 top-full mt-2 bg-app-inset border border-app-border rounded-2xl max-h-48 overflow-y-auto z-40 divide-y divide-app-border">
                   {filteredSuggestions.map((s) => (
                     <button
                       key={s}
@@ -406,7 +406,7 @@ export default function StockoutForm() {
                         setProduct(s);
                         setShowSuggestions(false);
                       }}
-                      className="w-full text-left px-5 py-3 text-xs font-black text-slate-300 hover:bg-slate-900 uppercase"
+                      className="w-full text-left px-5 py-3 text-xs font-black text-app-text hover:bg-app-card uppercase"
                     >
                       {s}
                     </button>
@@ -417,7 +417,7 @@ export default function StockoutForm() {
 
             {/* PACK TYPE SELECTOR GRID */}
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+              <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
                 Pack Type
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -426,7 +426,7 @@ export default function StockoutForm() {
                     key={pType}
                     type="button"
                     onClick={() => setType(pType)}
-                    className={`py-2.5 text-[10px] font-black rounded-xl border transition-all cursor-pointer ${type === pType ? "bg-blue-600 border-blue-600 text-white" : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600"}`}
+                    className={`py-2.5 text-[10px] font-black rounded-xl border transition-all cursor-pointer ${type === pType ? "bg-blue-600 border-blue-600 text-white" : "bg-app-inset border-app-border text-app-muted hover:border-app-muted"}`}
                   >
                     {pType}
                   </button>
@@ -436,7 +436,7 @@ export default function StockoutForm() {
 
             {/* DISPLAY LOCATION MATRIX SELECTOR */}
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+              <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
                 Store Layout Segment
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -445,7 +445,7 @@ export default function StockoutForm() {
                     key={loc}
                     type="button"
                     onClick={() => setLocation(loc)}
-                    className={`py-2.5 text-[10px] font-black rounded-xl border transition-all cursor-pointer ${location === loc ? "bg-emerald-600 border-emerald-600 text-white" : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-600"}`}
+                    className={`py-2.5 text-[10px] font-black rounded-xl border transition-all cursor-pointer ${location === loc ? "bg-emerald-600 border-emerald-600 text-white" : "bg-app-inset border-app-border text-app-muted hover:border-app-muted"}`}
                   >
                     {loc}
                   </button>
@@ -455,16 +455,16 @@ export default function StockoutForm() {
 
             {/* ROOT CAUSES SELECTOR CONFIGURATION */}
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+              <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
                 Logistical Cause
               </label>
               <div className="relative">
                 <AlertCircle
-                  className="absolute left-4 top-3.5 text-slate-500"
+                  className="absolute left-4 top-3.5 text-app-muted"
                   size={16}
                 />
                 <select
-                  className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold appearance-none cursor-pointer"
+                  className="w-full bg-app-inset text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none text-sm font-bold appearance-none cursor-pointer"
                   value={cause}
                   onChange={(e) => setCause(e.target.value)}
                 >
@@ -475,7 +475,7 @@ export default function StockoutForm() {
                   ))}
                 </select>
                 <ChevronRight
-                  className="absolute right-4 top-4 text-slate-500 pointer-events-none rotate-90"
+                  className="absolute right-4 top-4 text-app-muted pointer-events-none rotate-90"
                   size={14}
                 />
               </div>
@@ -483,16 +483,16 @@ export default function StockoutForm() {
 
             {/* ADDITIONAL OBSERVATION NOTES */}
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+              <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
                 Field Observations
               </label>
               <div className="relative">
                 <MessageSquare
-                  className="absolute left-4 top-3.5 text-slate-500"
+                  className="absolute left-4 top-3.5 text-app-muted"
                   size={16}
                 />
                 <textarea
-                  className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-20"
+                  className="w-full bg-app-inset text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none text-sm font-bold min-h-20"
                   placeholder="Specific notes (surges, display layout resets)..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -504,13 +504,13 @@ export default function StockoutForm() {
           /* SALES ALERT CREATION AND UPDATE INTERFACE MODE */
           <div className="space-y-4 animate-in fade-in duration-200">
             {matchingActiveAlerts.length > 0 && (
-              <div className="space-y-3 p-4 bg-slate-950/80 border border-slate-800 rounded-3xl">
+              <div className="space-y-3 p-4 bg-app-inset/80 border border-app-border rounded-3xl">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-app-muted">
                       Existing open broadcast alert
                     </p>
-                    <p className="text-sm font-bold text-slate-100">
+                    <p className="text-sm font-bold text-app-text">
                       Store {store.trim()}
                     </p>
                   </div>
@@ -522,20 +522,20 @@ export default function StockoutForm() {
                 {matchingActiveAlerts.map((alert) => (
                   <div
                     key={alert.id}
-                    className="space-y-2 rounded-3xl bg-slate-900/90 p-3 border border-slate-800"
+                    className="space-y-2 rounded-3xl bg-app-card/90 p-3 border border-app-border"
                   >
-                    <p className="text-slate-200 text-sm font-bold">
+                    <p className="text-app-text text-sm font-bold">
                       &ldquo;{alert.alert_text}&rdquo;
                     </p>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-black">
+                    <p className="text-[10px] text-app-muted uppercase tracking-[0.2em] font-black">
                       Created by {alert.author_name}
                     </p>
                     {alert.resolution_text && (
-                      <div className="rounded-3xl bg-slate-950/80 p-3 border border-slate-800">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-black">
+                      <div className="rounded-3xl bg-app-inset/80 p-3 border border-app-border">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-app-muted font-black">
                           Latest update
                         </p>
-                        <p className="mt-1 text-slate-300 text-sm">
+                        <p className="mt-1 text-app-text text-sm">
                           {alert.resolution_text}
                         </p>
                       </div>
@@ -557,12 +557,12 @@ export default function StockoutForm() {
 
             {!activeAlertActionId ? (
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase ml-1 tracking-[0.2em]">
+                <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
                   Alert Content Message
                 </label>
                 <div className="relative">
                   <Megaphone
-                    className="absolute left-4 top-3.5 text-slate-500"
+                    className="absolute left-4 top-3.5 text-app-muted"
                     size={16}
                   />
                   <textarea
@@ -570,14 +570,14 @@ export default function StockoutForm() {
                     value={alertText}
                     onChange={(e) => setAlertText(e.target.value)}
                     placeholder="e.g., Massive 2L Dew delivery incoming tomorrow for endcap promo drop. Clear floor room tonight."
-                    className="w-full bg-slate-950 text-slate-50 p-3.5 pl-12 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-32 focus:border-blue-600"
+                    className="w-full bg-app-inset text-app-text p-3.5 pl-12 rounded-2xl border border-app-border outline-none text-sm font-bold min-h-32 focus:border-blue-600"
                   />
                 </div>
               </div>
             ) : (
-              <div className="space-y-3 p-4 bg-slate-950/80 border border-slate-800 rounded-3xl">
+              <div className="space-y-3 p-4 bg-app-inset/80 border border-app-border rounded-3xl">
                 <div className="flex items-center justify-between">
-                  <span className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-black">
+                  <span className="text-[9px] uppercase tracking-[0.2em] text-app-muted font-black">
                     Resolution / status message
                   </span>
                   <button
@@ -586,7 +586,7 @@ export default function StockoutForm() {
                       setActiveAlertActionId(null);
                       setAlertResolutionText("");
                     }}
-                    className="text-[9px] text-slate-400 hover:text-slate-200"
+                    className="text-[9px] text-app-muted hover:text-app-text"
                   >
                     Cancel
                   </button>
@@ -595,7 +595,7 @@ export default function StockoutForm() {
                   value={alertResolutionText}
                   onChange={(e) => setAlertResolutionText(e.target.value)}
                   placeholder="Enter a resolution note, update message, or reason for closing the alert."
-                  className="w-full bg-slate-950 text-slate-50 p-3.5 rounded-2xl border border-slate-800 outline-none text-sm font-bold min-h-24 focus:border-blue-600"
+                  className="w-full bg-app-inset text-app-text p-3.5 rounded-2xl border border-app-border outline-none text-sm font-bold min-h-24 focus:border-blue-600"
                 />
                 <div className="flex flex-wrap gap-2">
                   <button
