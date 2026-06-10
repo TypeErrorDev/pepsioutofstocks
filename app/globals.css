@@ -1,30 +1,97 @@
 @import "tailwindcss";
 
-@theme {
-  /* Brand Colors */
-  --color-pepsi-blue: #005cb4;
-  --color-pepsi-red: #ef4444;
+/* ============================================================================
+   THEME TOKENS  —  EDIT COLORS HERE
+   ----------------------------------------------------------------------------
+   This is the single source of truth for the app's colors. Every component
+   reads from these tokens, so changing a value here restyles the whole app in
+   that theme — you never need to touch a component to change the look.
 
-  /* Semantic Enterprise Palette (Hardcoded Dark) */
-  --color-app-bg: #020617;
-  /* slate-950 */
-  --color-app-card: #0f172a;
-  /* slate-900 */
-  --color-app-border: #1e293b;
-  /* slate-800 */
-  --color-app-text: #f8fafc;
-  /* slate-50 */
-  --color-app-muted: #64748b;
-  /* slate-500 */
+   Each token has a DARK value and a LIGHT value. To recolor a theme, edit the
+   hex codes in that block. To add a brand, change --brand / --brand-danger.
+   ============================================================================ */
+
+:root,
+[data-theme="dark"] {
+  --app-bg: #020617; /* page background          (slate-950) */
+  --app-card: #0f172a; /* raised panels / cards    (slate-900) */
+  --app-inset: #020617; /* inputs & sunken areas    (slate-950) */
+  --app-border: #1e293b; /* borders & dividers       (slate-800) */
+  --app-text: #f8fafc; /* primary text             (slate-50)  */
+  --app-muted: #64748b; /* secondary text           (slate-500) */
+  --app-subtle: #475569; /* faint text / placeholder (slate-600) */
+  --brand: #005cb4; /* Pepsi blue */
+  --brand-danger: #ef4444; /* Pepsi red  */
+}
+
+[data-theme="light"] {
+  --app-bg: #f1f5f9; /* slate-100 */
+  --app-card: #ffffff; /* white     */
+  --app-inset: #f8fafc; /* slate-50  */
+  --app-border: #e2e8f0; /* slate-200 */
+  --app-text: #0f172a; /* slate-900 */
+  --app-muted: #64748b; /* slate-500 */
+  --app-subtle: #94a3b8; /* slate-400 */
+  --brand: #005cb4;
+  --brand-danger: #ef4444;
+}
+
+/* Map tokens to Tailwind color utilities. `inline` makes the generated
+   utilities reference the CSS vars directly (e.g. background:var(--app-bg)),
+   so bg-app-bg / text-app-text / border-app-border update live the moment the
+   data-theme attribute flips — no rebuild, no re-render needed. */
+@theme inline {
+  --color-app-bg: var(--app-bg);
+  --color-app-card: var(--app-card);
+  --color-app-inset: var(--app-inset);
+  --color-app-border: var(--app-border);
+  --color-app-text: var(--app-text);
+  --color-app-muted: var(--app-muted);
+  --color-app-subtle: var(--app-subtle);
+  --color-pepsi-blue: var(--brand);
+  --color-pepsi-red: var(--brand-danger);
 }
 
 @layer base {
+  html {
+    color-scheme: dark;
+  }
+  html[data-theme="light"] {
+    color-scheme: light;
+  }
   body {
     @apply bg-app-bg text-app-text antialiased;
   }
 }
 
-/* Premium slim scrollbar for the LogTable */
+/* While a theme switch is in progress we disable ALL transitions so the whole
+   UI flips instantly and uniformly — no element animating out of sync with
+   another (which would read as a glitch). */
+.theme-no-transition,
+.theme-no-transition * {
+  transition: none !important;
+}
+
+/* ThemeToggle icon visibility, driven purely by the active theme. Default
+   (dark) shows the moon; light shows the sun. */
+.theme-icon-sun {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.5);
+}
+.theme-icon-moon {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+[data-theme="light"] .theme-icon-sun {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+[data-theme="light"] .theme-icon-moon {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.5);
+}
+
+/* Premium slim scrollbar for scroll areas */
 @utility custom-scrollbar {
   &::-webkit-scrollbar {
     width: 4px;

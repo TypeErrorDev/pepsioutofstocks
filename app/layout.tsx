@@ -17,8 +17,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        {/* Apply the saved theme before paint so there is no flash of the
+            wrong theme on load. Runs synchronously during HTML parse. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)theme=(dark|light)/);if(m){document.documentElement.setAttribute('data-theme',m[1]);}}catch(e){}})();`,
+          }}
+        />
         <TrackerProvider>
           <AuthGate>{children}</AuthGate>
         </TrackerProvider>
