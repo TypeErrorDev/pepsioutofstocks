@@ -145,7 +145,8 @@ export default function Dashboard() {
 }
 
 // Reusable StatCard Component. Numbers render at full display size; string
-// values (e.g. a store name) render smaller and truncate so long names fit.
+// values (e.g. a store name) render smaller and wrap up to two lines —
+// clamped beyond that, with the full name available via the title tooltip.
 function StatCard({
   title,
   value,
@@ -166,8 +167,10 @@ function StatCard({
         {title}
       </p>
       <h3
-        className={`font-black text-app-text italic tracking-tighter leading-none ${
-          typeof value === "number" ? "text-4xl" : "text-2xl truncate uppercase"
+        className={`font-black text-app-text italic tracking-tighter ${
+          typeof value === "number"
+            ? "text-4xl leading-none"
+            : "text-2xl uppercase leading-tight break-words line-clamp-2"
         }`}
         title={typeof value === "string" ? value : undefined}
       >
