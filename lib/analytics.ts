@@ -199,13 +199,17 @@ function weekStartOf(iso: string): string {
 }
 
 /**
- * New gaps bucketed by the (UTC) week they were first logged, oldest first.
- * This is the "are we trending down?" series.
+ * Gaps bucketed by (UTC) week, oldest first — the "are we trending down?"
+ * series. Buckets by logged date by default; pass a `getDate` accessor to
+ * bucket by something else (e.g. resolution date on a resolved-only view).
  */
-export function trendByWeek(logs: AnalyticsLog[]): WeekBucket[] {
+export function trendByWeek(
+  logs: AnalyticsLog[],
+  getDate: (log: AnalyticsLog) => string = (l) => l.created_at,
+): WeekBucket[] {
   const counts = new Map<string, number>();
   for (const log of logs) {
-    const week = weekStartOf(log.created_at);
+    const week = weekStartOf(getDate(log));
     if (!week) continue;
     counts.set(week, (counts.get(week) ?? 0) + 1);
   }

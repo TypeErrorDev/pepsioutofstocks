@@ -143,5 +143,19 @@ describe("InsightsAnalytics", () => {
     expect(screen.getByText("Stores Covered")).toBeInTheDocument();
     // The open-centric tiles are replaced on this view.
     expect(screen.queryByText("Open Gaps")).not.toBeInTheDocument();
+
+    // The trend card is renamed for the resolved context...
+    expect(
+      screen.getByRole("button", { name: /Resolved Over Time/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Gaps Over Time")).not.toBeInTheDocument();
+
+    // ...and its modal carries the resolved title too.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Resolved Over Time/i }),
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByText(/Gaps Resolved Over Time/i),
+    ).toBeInTheDocument();
   });
 });

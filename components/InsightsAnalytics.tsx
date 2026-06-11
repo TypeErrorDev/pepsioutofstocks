@@ -98,6 +98,8 @@ export default function InsightsAnalytics({
 }) {
   const [activeChart, setActiveChart] = useState<ChartId | null>(null);
 
+  const isResolvedView = statusView === "resolved";
+
   const kpis = useMemo(() => summarizeKpis(logs), [logs]);
   const resolveDays = useMemo(() => avgDaysToResolve(logs), [logs]);
   const storeCount = useMemo(() => distinctStoreCount(logs), [logs]);
@@ -111,10 +113,14 @@ export default function InsightsAnalytics({
     [logs],
   );
   const chronicTotal = useMemo(() => chronicCount(logs), [logs]);
-  const trend = useMemo(
-    () => trendByWeek(logs).map((w) => ({ ...w, label: weekLabel(w.weekStart) })),
-    [logs],
-  );
+  // On the resolved-only view the meaningful trend is WHEN gaps were resolved,
+  // not when they were first logged — so bucket by resolution date there.
+  const trend = useMemo(() => {
+    const buckets = isResolvedView
+      ? trendByWeek(logs, (l) => l.updated_at || l.created_at)
+      : trendByWeek(logs);
+    return buckets.map((w) => ({ ...w, label: weekLabel(w.weekStart) }));
+  }, [logs, isResolvedView]);
   const overlap = useMemo(() => promoOverlap(logs, promos), [logs, promos]);
   const products = useMemo(() => topProducts(logs, 6), [logs]);
 
@@ -137,7 +143,7 @@ export default function InsightsAnalytics({
     {
       id: "trend",
       icon: <TrendingUp size={16} />,
-      title: "Gaps Over Time",
+      title: isResolvedView ? "Resolved Over Time" : "Gaps Over Time",
       value: String(kpis.total),
       hint: `${trend.length} week${trend.length === 1 ? "" : "s"} tracked`,
     },
@@ -159,7 +165,7 @@ export default function InsightsAnalytics({
 
   const chartTitle: Record<ChartId, string> = {
     cause: "Root-Cause Mix",
-    trend: "Gaps Logged Over Time",
+    trend: isResolvedView ? "Gaps Resolved Over Time" : "Gaps Logged Over Time",
     chronic: "Chronic Offenders",
     promo: "Promotion Impact",
   };
@@ -325,7 +331,10 @@ export default function InsightsAnalytics({
                   />
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
-                    formatter={(value) => [`${value} new gaps`, "Logged"]}
+                    formatter={(value) => [
+                      `${value} ${isResolvedView ? "gaps resolved" : "new gaps"}`,
+                      isResolvedView ? "Resolved" : "Logged",
+                    ]}
                   />
                   <Line
                     type="monotone"
@@ -339,7 +348,9 @@ export default function InsightsAnalytics({
               {products.length > 0 && (
                 <div>
                   <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-app-muted">
-                    Most-gapped products
+                    {isResolvedView
+                      ? "Most-resolved products"
+                      : "Most-gapped products"}
                   </p>
                   <ul className="space-y-1.5">
                     {products.map((p) => (

@@ -167,6 +167,31 @@ describe("trendByWeek", () => {
     expect(out[0].weekStart < out[1].weekStart).toBe(true);
     expect(out[0].weekStart).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it("buckets by a custom date accessor (e.g. resolution date)", () => {
+    const logs = [
+      log({
+        created_at: "2026-05-01T12:00:00Z",
+        updated_at: "2026-06-09T12:00:00Z",
+        is_worked: true,
+      }),
+      log({
+        created_at: "2026-05-02T12:00:00Z",
+        updated_at: "2026-06-10T12:00:00Z",
+        is_worked: true,
+      }),
+    ];
+    // By created_at these land in one early-May week; by resolution they land
+    // in one June week.
+    const byCreated = trendByWeek(logs);
+    expect(byCreated).toHaveLength(1);
+    expect(byCreated[0].weekStart < "2026-06-01").toBe(true);
+
+    const byResolved = trendByWeek(logs, (l) => l.updated_at || l.created_at);
+    expect(byResolved).toHaveLength(1);
+    expect(byResolved[0].weekStart >= "2026-06-01").toBe(true);
+    expect(byResolved[0].count).toBe(2);
+  });
 });
 
 describe("brand matching", () => {
