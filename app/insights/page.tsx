@@ -5,7 +5,7 @@ import { useTracker, type StockoutLog } from "@/context/TrackerContext";
 import { supabase } from "@/lib/supabase";
 import { isManagement } from "@/lib/permissions";
 import { formatPST } from "@/lib/format";
-import type { PromoCalendarRow } from "@/lib/analytics";
+import { logActivityTimestamp, type PromoCalendarRow } from "@/lib/analytics";
 import InsightsAnalytics from "@/components/InsightsAnalytics";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -169,20 +169,27 @@ export default function InsightsPage() {
             cutoff.setFullYear(now.getFullYear() - timeValue);
             break;
         }
+        // Window on the log's latest activity (verification for open gaps,
+        // resolution for worked ones) so an old gap resolved today still
+        // counts as recent — otherwise the Resolved tab zeroes out.
         data = data.filter(
-          (log) => new Date(log.last_verified_at || log.created_at) >= cutoff,
+          (log) => new Date(logActivityTimestamp(log)) >= cutoff,
         );
       }
     } else {
       if (startDate) {
         const startBounds = new Date(startDate);
         startBounds.setHours(0, 0, 0, 0);
-        data = data.filter((log) => new Date(log.created_at) >= startBounds);
+        data = data.filter(
+          (log) => new Date(logActivityTimestamp(log)) >= startBounds,
+        );
       }
       if (endDate) {
         const endBounds = new Date(endDate);
         endBounds.setHours(23, 59, 59, 999);
-        data = data.filter((log) => new Date(log.created_at) <= endBounds);
+        data = data.filter(
+          (log) => new Date(logActivityTimestamp(log)) <= endBounds,
+        );
       }
     }
 
@@ -479,7 +486,11 @@ export default function InsightsPage() {
       </div>
 
       {/* AT-A-GLANCE ANALYTICS (clickable tiles -> charted modals) */}
-      <InsightsAnalytics logs={filteredLogs} promos={promos} />
+      <InsightsAnalytics
+        logs={filteredLogs}
+        promos={promos}
+        statusView={statusFilter}
+      />
 
       {/* VELOCITY LEDGER CORES */}
       <div className="bg-app-card border border-app-border rounded-3xl overflow-hidden shadow-xl">

@@ -112,4 +112,50 @@ describe("InsightsAnalytics", () => {
     expect(screen.getByText("Open Gaps")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Chronic Offenders/i })).toBeInTheDocument();
   });
+
+  it("shows resolution-centric KPIs on the resolved view", () => {
+    const resolvedLogs = [
+      makeLog({
+        is_worked: true,
+        store: "QFC #1",
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: "2026-06-04T00:00:00Z", // 3 days to resolve
+      }),
+      makeLog({
+        is_worked: true,
+        store: "Safeway #2",
+        created_at: "2026-06-02T00:00:00Z",
+        updated_at: "2026-06-07T00:00:00Z", // 5 days to resolve
+      }),
+    ];
+
+    render(
+      <InsightsAnalytics
+        logs={resolvedLogs}
+        promos={[]}
+        statusView="resolved"
+      />,
+    );
+
+    expect(screen.getByText("Resolved Gaps")).toBeInTheDocument();
+    expect(screen.getByText("Avg Days To Resolve")).toBeInTheDocument();
+    expect(screen.getByText("4.0d")).toBeInTheDocument(); // (3 + 5) / 2
+    expect(screen.getByText("Stores Covered")).toBeInTheDocument();
+    // The open-centric tiles are replaced on this view.
+    expect(screen.queryByText("Open Gaps")).not.toBeInTheDocument();
+
+    // The trend card is renamed for the resolved context...
+    expect(
+      screen.getByRole("button", { name: /Resolved Over Time/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Gaps Over Time")).not.toBeInTheDocument();
+
+    // ...and its modal carries the resolved title too.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Resolved Over Time/i }),
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByText(/Gaps Resolved Over Time/i),
+    ).toBeInTheDocument();
+  });
 });

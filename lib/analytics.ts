@@ -199,13 +199,17 @@ function weekStartOf(iso: string): string {
 }
 
 /**
- * New gaps bucketed by the (UTC) week they were first logged, oldest first.
- * This is the "are we trending down?" series.
+ * Gaps bucketed by (UTC) week, oldest first — the "are we trending down?"
+ * series. Buckets by logged date by default; pass a `getDate` accessor to
+ * bucket by something else (e.g. resolution date on a resolved-only view).
  */
-export function trendByWeek(logs: AnalyticsLog[]): WeekBucket[] {
+export function trendByWeek(
+  logs: AnalyticsLog[],
+  getDate: (log: AnalyticsLog) => string = (l) => l.created_at,
+): WeekBucket[] {
   const counts = new Map<string, number>();
   for (const log of logs) {
-    const week = weekStartOf(log.created_at);
+    const week = weekStartOf(getDate(log));
     if (!week) continue;
     counts.set(week, (counts.get(week) ?? 0) + 1);
   }
@@ -308,6 +312,53 @@ export function episodesForItem<T extends AnalyticsLog>(
         key(l.pack_type) === pack,
     )
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/**
+ * The timestamp of a log's most recent meaningful activity: verification (or
+ * creation) for open gaps, plus resolution for worked gaps. Time-window
+ * filters should use this rather than verification time alone — otherwise a
+ * long-standing gap that was resolved today falls outside a short rolling
+ * window and "disappears" from resolved views.
+ */
+export function logActivityTimestamp(log: AnalyticsLog): string {
+  const base = log.last_verified_at || log.created_at;
+  if (log.is_worked && log.updated_at) {
+    const baseMs = new Date(base).getTime();
+    const updatedMs = new Date(log.updated_at).getTime();
+    if (!Number.isNaN(updatedMs) && (Number.isNaN(baseMs) || updatedMs > baseMs)) {
+      return log.updated_at;
+    }
+  }
+  return base;
+}
+
+/**
+ * Mean days from first logging to resolution across resolved, non-archived
+ * rows (resolution time = updated_at; see topResolvedStores for why that is
+ * accurate for worked rows).
+ */
+export function avgDaysToResolve(logs: AnalyticsLog[]): number {
+  const resolved = logs.filter(
+    (l) => l.is_worked && !l.is_hidden && l.updated_at,
+  );
+  if (resolved.length === 0) return 0;
+  return (
+    resolved.reduce(
+      (sum, l) => sum + daysBetween(l.created_at, l.updated_at as string),
+      0,
+    ) / resolved.length
+  );
+}
+
+/** Number of distinct stores in the set (case/whitespace-insensitive). */
+export function distinctStoreCount(logs: AnalyticsLog[]): number {
+  const stores = new Set<string>();
+  for (const log of logs) {
+    const store = (log.store ?? "").trim().toLowerCase();
+    if (store) stores.add(store);
+  }
+  return stores.size;
 }
 
 export interface StoreResolutionCount {
