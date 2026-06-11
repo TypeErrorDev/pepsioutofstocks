@@ -1,8 +1,15 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import { useTracker } from "@/context/TrackerContext";
 import { isManagement } from "@/lib/permissions";
-import { Package, AlertCircle, CheckCircle2, TrendingUp } from "lucide-react";
+import { topResolvedStores } from "@/lib/analytics";
+import {
+  Package,
+  AlertCircle,
+  CheckCircle2,
+  TrendingUp,
+  Trophy,
+} from "lucide-react";
 import Link from "next/link";
 import StockoutForm from "./StockoutForm";
 import LogTable from "./LogTable";
@@ -25,6 +32,9 @@ export default function Dashboard() {
   const serviceGaps = activeLogs.filter(
     (l) => l.root_cause === "Backstock",
   ).length;
+
+  // Store with the most gaps resolved in the rolling last 7 days
+  const resolutionLeader = useMemo(() => topResolvedStores(logs, 7)[0], [logs]);
 
   return (
     <div className="max-w-400 mx-auto p-4 md:p-8 lg:p-12 space-y-6 md:space-y-10">
@@ -63,7 +73,7 @@ export default function Dashboard() {
       </header>
 
       {/* --- STATS GRID --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Active Field Logs"
           value={totalLogs}
@@ -81,6 +91,17 @@ export default function Dashboard() {
           value={serviceGaps}
           icon={<CheckCircle2 size={20} />}
           color="text-emerald-500"
+        />
+        <StatCard
+          title="Resolution Leader"
+          value={resolutionLeader ? resolutionLeader.store : "—"}
+          hint={
+            resolutionLeader
+              ? `${resolutionLeader.resolved} resolved · past 7 days`
+              : "No resolutions in the past 7 days"
+          }
+          icon={<Trophy size={20} />}
+          color="text-amber-500"
         />
       </div>
 
@@ -123,17 +144,20 @@ export default function Dashboard() {
   );
 }
 
-// Reusable StatCard Component
+// Reusable StatCard Component. Numbers render at full display size; string
+// values (e.g. a store name) render smaller and truncate so long names fit.
 function StatCard({
   title,
   value,
   icon,
   color,
+  hint,
 }: {
   title: string;
-  value: number;
+  value: number | string;
   icon: React.ReactNode;
   color: string;
+  hint?: string;
 }) {
   return (
     <div className="bg-app-card border border-app-border p-6 rounded-4xl shadow-xl transition-all hover:scale-[1.02]">
@@ -141,9 +165,19 @@ function StatCard({
       <p className="text-[10px] font-black text-app-muted uppercase tracking-widest mb-1">
         {title}
       </p>
-      <h3 className="text-4xl font-black text-app-text italic tracking-tighter leading-none">
+      <h3
+        className={`font-black text-app-text italic tracking-tighter leading-none ${
+          typeof value === "number" ? "text-4xl" : "text-2xl truncate uppercase"
+        }`}
+        title={typeof value === "string" ? value : undefined}
+      >
         {value}
       </h3>
+      {hint && (
+        <p className="text-[9px] font-bold text-app-muted uppercase tracking-widest mt-2">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
