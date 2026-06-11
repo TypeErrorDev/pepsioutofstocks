@@ -14,6 +14,7 @@ import {
   summarizeEpisodes,
   summarizeKpis,
   topProducts,
+  topResolvedStores,
   trendByWeek,
 } from "@/lib/analytics";
 
@@ -227,6 +228,82 @@ describe("promoOverlap", () => {
     const out = promoOverlap([log()], []);
     expect(out.onPromo).toBe(0);
     expect(out.pct).toBe(0);
+  });
+});
+
+describe("topResolvedStores", () => {
+  const now = new Date("2026-06-10T00:00:00Z");
+
+  it("counts only resolved, non-hidden logs inside the rolling window", () => {
+    const logs = [
+      // counts: resolved 2 days ago
+      log({
+        store: "QFC #1",
+        is_worked: true,
+        updated_at: "2026-06-08T00:00:00Z",
+      }),
+      // counts: resolved exactly at the 7-day boundary (inclusive)
+      log({
+        store: "QFC #1",
+        is_worked: true,
+        updated_at: "2026-06-03T00:00:00Z",
+      }),
+      // too old: resolved 8 days ago
+      log({
+        store: "QFC #1",
+        is_worked: true,
+        updated_at: "2026-06-02T00:00:00Z",
+      }),
+      // open gap: never counts even with a recent update
+      log({
+        store: "Safeway #2",
+        is_worked: false,
+        updated_at: "2026-06-09T00:00:00Z",
+      }),
+      // archived: excluded
+      log({
+        store: "Safeway #2",
+        is_worked: true,
+        is_hidden: true,
+        updated_at: "2026-06-09T00:00:00Z",
+      }),
+      // counts for the other store
+      log({
+        store: "Safeway #2",
+        is_worked: true,
+        updated_at: "2026-06-09T00:00:00Z",
+      }),
+    ];
+
+    const out = topResolvedStores(logs, 7, now);
+    expect(out).toEqual([
+      { store: "QFC #1", resolved: 2 },
+      { store: "Safeway #2", resolved: 1 },
+    ]);
+  });
+
+  it("breaks ties alphabetically and respects the limit", () => {
+    const logs = [
+      log({ store: "B", is_worked: true, updated_at: "2026-06-09T00:00:00Z" }),
+      log({ store: "A", is_worked: true, updated_at: "2026-06-09T00:00:00Z" }),
+      log({ store: "C", is_worked: true, updated_at: "2026-06-09T00:00:00Z" }),
+    ];
+    const out = topResolvedStores(logs, 7, now, 2);
+    expect(out).toEqual([
+      { store: "A", resolved: 1 },
+      { store: "B", resolved: 1 },
+    ]);
+  });
+
+  it("skips rows without a usable timestamp and is empty-safe", () => {
+    expect(topResolvedStores([], 7, now)).toEqual([]);
+    expect(
+      topResolvedStores(
+        [log({ is_worked: true, updated_at: null })],
+        7,
+        now,
+      ),
+    ).toEqual([]);
   });
 });
 

@@ -35,6 +35,7 @@ export interface AnalyticsLog {
   is_worked: boolean;
   is_hidden: boolean;
   created_at: string;
+  updated_at?: string | null;
   last_verified_at?: string | null;
   verification_count?: number | null;
 }
@@ -307,6 +308,39 @@ export function episodesForItem<T extends AnalyticsLog>(
         key(l.pack_type) === pack,
     )
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export interface StoreResolutionCount {
+  store: string;
+  resolved: number;
+}
+
+/**
+ * Stores ranked by how many gaps were resolved within the trailing `days`
+ * window (rolling, not calendar). Resolution time is read from `updated_at`:
+ * the app stamps it on resolve, re-opening clears `is_worked` (so un-resolved
+ * rows never count), and archived rows are excluded — which makes it an
+ * accurate resolution timestamp for worked rows until a dedicated
+ * `resolved_at` column exists.
+ */
+export function topResolvedStores(
+  logs: AnalyticsLog[],
+  days = 7,
+  now: Date = new Date(),
+  limit = 5,
+): StoreResolutionCount[] {
+  const cutoff = now.getTime() - days * DAY_MS;
+  const counts = new Map<string, number>();
+  for (const log of logs) {
+    if (log.is_hidden || !log.is_worked || !log.updated_at) continue;
+    const ts = new Date(log.updated_at).getTime();
+    if (Number.isNaN(ts) || ts < cutoff) continue;
+    const store = log.store?.trim() || "Unknown";
+    counts.set(store, (counts.get(store) ?? 0) + 1);
+  }
+  return Array.from(counts, ([store, resolved]) => ({ store, resolved }))
+    .sort((a, b) => b.resolved - a.resolved || a.store.localeCompare(b.store))
+    .slice(0, limit);
 }
 
 export interface EpisodeSummary {
