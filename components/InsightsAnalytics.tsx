@@ -17,6 +17,8 @@ import {
 import {
   AlertCircle,
   CalendarClock,
+  CheckCircle2,
+  MapPin,
   Megaphone,
   PieChart as PieIcon,
   Repeat,
@@ -25,8 +27,10 @@ import {
 import type { StockoutLog } from "@/context/TrackerContext";
 import {
   type PromoCalendarRow,
+  avgDaysToResolve,
   chronicCount,
   chronicOffenders,
+  distinctStoreCount,
   promoOverlap,
   rootCauseBreakdown,
   summarizeKpis,
@@ -85,13 +89,18 @@ function EmptyState({ message }: { message: string }) {
 export default function InsightsAnalytics({
   logs,
   promos,
+  statusView = "all",
 }: {
   logs: StockoutLog[];
   promos: PromoCalendarRow[];
+  /** Active status filter on the page; the KPI strip adapts to it. */
+  statusView?: "all" | "open" | "resolved";
 }) {
   const [activeChart, setActiveChart] = useState<ChartId | null>(null);
 
   const kpis = useMemo(() => summarizeKpis(logs), [logs]);
+  const resolveDays = useMemo(() => avgDaysToResolve(logs), [logs]);
+  const storeCount = useMemo(() => distinctStoreCount(logs), [logs]);
   const causes = useMemo(() => rootCauseBreakdown(logs), [logs]);
   const chronic = useMemo(
     () =>
@@ -157,23 +166,46 @@ export default function InsightsAnalytics({
 
   return (
     <div className="space-y-4">
-      {/* Glanceable KPI strip */}
+      {/* Glanceable KPI strip. On the resolved-only view, "open" metrics are
+          definitionally zero, so show resolution-centric tiles instead. */}
       <div className="grid grid-cols-3 gap-3">
-        <Kpi
-          icon={<AlertCircle size={16} />}
-          label="Open Gaps"
-          value={String(kpis.open)}
-        />
-        <Kpi
-          icon={<CalendarClock size={16} />}
-          label="Avg Open Age"
-          value={`${kpis.avgOpenAgeDays.toFixed(1)}d`}
-        />
-        <Kpi
-          icon={<TrendingUp size={16} />}
-          label="Resolved"
-          value={pct(kpis.resolutionRate)}
-        />
+        {statusView === "resolved" ? (
+          <>
+            <Kpi
+              icon={<CheckCircle2 size={16} />}
+              label="Resolved Gaps"
+              value={String(kpis.resolved)}
+            />
+            <Kpi
+              icon={<CalendarClock size={16} />}
+              label="Avg Days To Resolve"
+              value={`${resolveDays.toFixed(1)}d`}
+            />
+            <Kpi
+              icon={<MapPin size={16} />}
+              label="Stores Covered"
+              value={String(storeCount)}
+            />
+          </>
+        ) : (
+          <>
+            <Kpi
+              icon={<AlertCircle size={16} />}
+              label="Open Gaps"
+              value={String(kpis.open)}
+            />
+            <Kpi
+              icon={<CalendarClock size={16} />}
+              label="Avg Open Age"
+              value={`${kpis.avgOpenAgeDays.toFixed(1)}d`}
+            />
+            <Kpi
+              icon={<TrendingUp size={16} />}
+              label="Resolved"
+              value={pct(kpis.resolutionRate)}
+            />
+          </>
+        )}
       </div>
 
       {/* Clickable visualization cards */}

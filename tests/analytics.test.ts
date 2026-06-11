@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   type AnalyticsLog,
   type PromoCalendarRow,
+  avgDaysToResolve,
   brandMatchesProduct,
   chronicCount,
   chronicOffenders,
   daysBetween,
+  distinctStoreCount,
   episodesForItem,
   isLogDuringPromo,
+  logActivityTimestamp,
   normalizeName,
   promoOverlap,
   rootCauseBreakdown,
@@ -228,6 +231,75 @@ describe("promoOverlap", () => {
     const out = promoOverlap([log()], []);
     expect(out.onPromo).toBe(0);
     expect(out.pct).toBe(0);
+  });
+});
+
+describe("logActivityTimestamp", () => {
+  it("uses verification time for open gaps even when updated_at is newer", () => {
+    const open = log({
+      is_worked: false,
+      last_verified_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-09T00:00:00Z",
+    });
+    expect(logActivityTimestamp(open)).toBe("2026-06-01T00:00:00Z");
+  });
+
+  it("uses resolution time for worked gaps when it is the latest activity", () => {
+    const resolvedToday = log({
+      is_worked: true,
+      created_at: "2026-05-01T00:00:00Z",
+      last_verified_at: "2026-05-20T00:00:00Z",
+      updated_at: "2026-06-09T00:00:00Z",
+    });
+    expect(logActivityTimestamp(resolvedToday)).toBe("2026-06-09T00:00:00Z");
+  });
+
+  it("keeps the later verification when it beats updated_at, and falls back to created_at", () => {
+    const verifiedAfter = log({
+      is_worked: true,
+      last_verified_at: "2026-06-08T00:00:00Z",
+      updated_at: "2026-06-05T00:00:00Z",
+    });
+    expect(logActivityTimestamp(verifiedAfter)).toBe("2026-06-08T00:00:00Z");
+
+    const bare = log({
+      is_worked: true,
+      created_at: "2026-06-02T00:00:00Z",
+      last_verified_at: null,
+      updated_at: null,
+    });
+    expect(logActivityTimestamp(bare)).toBe("2026-06-02T00:00:00Z");
+  });
+});
+
+describe("avgDaysToResolve / distinctStoreCount", () => {
+  it("averages created->resolved days across resolved rows only", () => {
+    const logs = [
+      log({
+        is_worked: true,
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: "2026-06-03T00:00:00Z", // 2 days
+      }),
+      log({
+        is_worked: true,
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: "2026-06-05T00:00:00Z", // 4 days
+      }),
+      log({ is_worked: false, updated_at: "2026-06-09T00:00:00Z" }), // open: ignored
+      log({ is_worked: true, is_hidden: true, updated_at: "2026-06-09T00:00:00Z" }), // archived: ignored
+    ];
+    expect(avgDaysToResolve(logs)).toBe(3);
+    expect(avgDaysToResolve([])).toBe(0);
+  });
+
+  it("counts distinct stores ignoring case and whitespace", () => {
+    const logs = [
+      log({ store: "QFC #1" }),
+      log({ store: " qfc #1 " }),
+      log({ store: "Safeway #2" }),
+    ];
+    expect(distinctStoreCount(logs)).toBe(2);
+    expect(distinctStoreCount([])).toBe(0);
   });
 });
 
