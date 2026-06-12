@@ -90,7 +90,7 @@ export default function Modal({
       >
         <header className="flex items-center justify-between gap-3 border-b border-app-border p-5">
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-black uppercase italic tracking-tight text-app-text">
+            <h2 className="truncate pe-1 text-lg font-black uppercase italic tracking-tight text-app-text">
               {title}
             </h2>
             {subtitle && (

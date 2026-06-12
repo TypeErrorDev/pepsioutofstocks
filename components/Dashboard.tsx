@@ -170,7 +170,7 @@ function StatCard({
         className={`font-black text-app-text italic tracking-tighter ${
           typeof value === "number"
             ? "text-4xl leading-none"
-            : "text-2xl uppercase leading-tight break-words line-clamp-2"
+            : "text-2xl uppercase leading-tight break-words line-clamp-2 pe-1"
         }`}
         title={typeof value === "string" ? value : undefined}
       >
