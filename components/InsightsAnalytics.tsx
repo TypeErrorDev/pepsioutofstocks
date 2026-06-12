@@ -232,7 +232,8 @@ export default function InsightsAnalytics({
             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-app-muted">
               {card.title}
             </span>
-            <span className="truncate text-xl font-black uppercase italic tracking-tight text-app-text">
+            {/* pe-1 keeps the italic glyph overhang inside the truncate clip box */}
+            <span className="truncate pe-1 text-xl font-black uppercase italic tracking-tight text-app-text">
               {card.value}
             </span>
             <span className="text-[9px] font-bold uppercase tracking-wide text-app-muted">
@@ -500,7 +501,7 @@ function Kpi({
       <p className="text-[9px] font-black uppercase tracking-[0.2em] text-app-muted">
         {label}
       </p>
-      <p className="text-2xl font-black uppercase italic tracking-tight text-app-text">
+      <p className="pe-1 text-2xl font-black uppercase italic tracking-tight text-app-text">
         {value}
       </p>
     </div>

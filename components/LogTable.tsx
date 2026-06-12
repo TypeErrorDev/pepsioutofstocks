@@ -386,13 +386,13 @@ export default function LogTable() {
           >
             <header className="p-6 border-b border-app-border flex justify-between items-start gap-3 bg-app-card/50">
               <div className="min-w-0">
-                <h2 className="text-xl font-black text-app-text uppercase italic tracking-tighter truncate">
+                <h2 className="text-xl font-black text-app-text uppercase italic tracking-tighter truncate pe-1">
                   {modalLog.product}{" "}
                   <span className="text-app-muted">{modalLog.pack_type}</span>
                 </h2>
                 <p className="text-[10px] font-black text-app-muted uppercase tracking-widest flex items-center gap-1.5">
                   <MapPin size={11} className="text-pepsi-blue" />
-                  Store #{modalLog.store}
+                  Store {modalLog.store}
                 </p>
               </div>
               <button

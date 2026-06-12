@@ -515,7 +515,7 @@ export default function InsightsPage() {
                 </span>
                 <div>
                   <p className="text-sm font-black text-app-text uppercase">
-                    Store #{store.name}
+                    Store {store.name}
                   </p>
                   <p className="text-[10px] font-bold text-app-muted uppercase mt-0.5">
                     {store.distinctGaps} Unresolved Items Missing Across
