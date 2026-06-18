@@ -37,4 +37,20 @@ describe("Roadmap", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: /close/i }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("resets the filter to All when the modal is reopened", () => {
+    render(<Roadmap />);
+
+    // Open, narrow to Background, then close.
+    fireEvent.click(screen.getByRole("button", { name: /road map/i }));
+    let dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Background" }));
+    expect(within(dialog).queryByText(/Offline-first/i)).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: /close/i }));
+
+    // Reopen → back to All, so the Major items are visible again.
+    fireEvent.click(screen.getByRole("button", { name: /road map/i }));
+    dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/Offline-first/i)).toBeInTheDocument();
+  });
 });

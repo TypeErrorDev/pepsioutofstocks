@@ -198,7 +198,10 @@ export default function Roadmap() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setFilter("All");
+          setOpen(true);
+        }}
         className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.3em] text-app-muted transition-colors hover:text-pepsi-blue cursor-pointer"
       >
         <RoadmapIcon size={11} />
