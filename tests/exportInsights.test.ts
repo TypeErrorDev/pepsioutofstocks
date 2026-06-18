@@ -3,6 +3,7 @@ import type { StockoutLog } from "@/context/TrackerContext";
 import {
   EXPORT_COLUMNS,
   buildExportRows,
+  describeFilters,
 } from "@/lib/exportInsights";
 
 function makeLog(overrides: Partial<StockoutLog> = {}): StockoutLog {
@@ -59,5 +60,42 @@ describe("buildExportRows", () => {
 
   it("is empty-safe", () => {
     expect(buildExportRows([])).toEqual([]);
+  });
+});
+
+describe("describeFilters", () => {
+  it("summarizes a resolved rolling-window view with a store search", () => {
+    expect(
+      describeFilters({
+        status: "resolved",
+        mode: "rolling",
+        timeValue: 14,
+        timeUnit: "days",
+        search: "5406",
+      }),
+    ).toBe("Resolved  ·  Last 14 days  ·  Store 5406");
+  });
+
+  it("summarizes a custom date range", () => {
+    expect(
+      describeFilters({
+        status: "all",
+        mode: "custom",
+        startDate: "2026-06-01",
+        endDate: "2026-06-12",
+      }),
+    ).toBe("All logs  ·  2026-06-01 to 2026-06-12");
+  });
+
+  it("omits an empty store search", () => {
+    expect(
+      describeFilters({
+        status: "open",
+        mode: "rolling",
+        timeValue: 7,
+        timeUnit: "days",
+        search: "  ",
+      }),
+    ).toBe("Open gaps  ·  Last 7 days");
   });
 });
