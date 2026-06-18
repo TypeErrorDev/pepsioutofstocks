@@ -17,6 +17,8 @@ import {
   Circle,
   CheckCircle,
   FileSpreadsheet,
+  Minus,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -457,34 +459,37 @@ export default function InsightsPage() {
                 <label className="text-[9px] font-black text-app-muted uppercase ml-1 mb-1.5 tracking-widest">
                   Magnitude
                 </label>
-                <div className="relative group">
-                  <input
-                    type="number"
-                    min={1}
-                    value={timeValue || ""}
-                    onChange={(e) =>
-                      setTimeValue(parseInt(e.target.value) || 0)
+                <div className="flex items-stretch overflow-hidden rounded-xl border border-app-border bg-app-inset transition-colors focus-within:border-pepsi-blue">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTimeValue((p) => Math.max(1, (p || 0) - 1))
                     }
-                    className="w-full bg-app-inset border border-app-border rounded-xl pl-4 pr-12 py-3.5 text-xs text-app-text font-black"
+                    disabled={(timeValue || 0) <= 1}
+                    aria-label="Decrease magnitude"
+                    className="flex items-center justify-center px-3 text-app-muted transition-colors hover:bg-app-card hover:text-pepsi-blue disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-app-muted cursor-pointer"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    aria-label="Magnitude"
+                    value={timeValue || ""}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      setTimeValue(digits === "" ? 0 : parseInt(digits, 10));
+                    }}
+                    className="w-full min-w-0 bg-transparent py-3.5 text-center text-xs font-black text-app-text outline-none"
                   />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-60 group-hover:opacity-100">
-                    <button
-                      type="button"
-                      onClick={() => setTimeValue((p) => (p || 0) + 1)}
-                      className="p-0.5 text-app-muted hover:text-blue-500 cursor-pointer"
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTimeValue((p) => Math.max(1, (p || 0) - 1))
-                      }
-                      className="p-0.5 text-app-muted hover:text-blue-500 cursor-pointer"
-                    >
-                      ▼
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTimeValue((p) => (p || 0) + 1)}
+                    aria-label="Increase magnitude"
+                    className="flex items-center justify-center px-3 text-app-muted transition-colors hover:bg-app-card hover:text-pepsi-blue cursor-pointer"
+                  >
+                    <Plus size={14} />
+                  </button>
                 </div>
               </div>
 
