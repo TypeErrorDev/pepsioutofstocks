@@ -84,7 +84,8 @@ const ROADMAP: RoadmapGroup[] = [
       },
       {
         title: "CSV export",
-        description: "A lightweight export option alongside the styled Excel file.",
+        description:
+          "A lightweight export option alongside the styled Excel file.",
       },
     ],
   },
@@ -94,7 +95,8 @@ const ROADMAP: RoadmapGroup[] = [
     items: [
       {
         title: "Match system theme",
-        description: "Default light/dark to the device preference on first visit.",
+        description:
+          "Default light/dark to the device preference on first visit.",
       },
       {
         title: "Light-mode accent tuning",
@@ -106,17 +108,19 @@ const ROADMAP: RoadmapGroup[] = [
       },
       {
         title: "Branding touches",
-        description: "Logo in the Excel header and a branded favicon / preview image.",
+        description:
+          "Logo in the Excel header and a branded favicon / preview image.",
       },
     ],
   },
   {
     category: "Background",
-    blurb: "Under-the-hood: security, performance, reliability",
+    blurb: "Security, performance, reliability",
     items: [
       {
         title: "Tighten row-level security",
-        description: "Per-role / ownership rules so users only edit what they should.",
+        description:
+          "Per-role / ownership rules so users only edit what they should.",
       },
       {
         title: "Scalable data loading",
@@ -152,15 +156,43 @@ const ROADMAP: RoadmapGroup[] = [
 ];
 /* ========================================================================= */
 
-const CATEGORY_COLOR: Record<RoadmapCategory, { dot: string; text: string }> = {
-  Major: { dot: "bg-pepsi-blue", text: "text-pepsi-blue" },
-  Minor: { dot: "bg-emerald-500", text: "text-emerald-500" },
-  Cosmetic: { dot: "bg-violet-500", text: "text-violet-500" },
-  Background: { dot: "bg-app-muted", text: "text-app-muted" },
+const CATEGORY_COLOR: Record<
+  RoadmapCategory,
+  { dot: string; text: string; activePill: string }
+> = {
+  Major: {
+    dot: "bg-pepsi-blue",
+    text: "text-pepsi-blue",
+    activePill: "bg-pepsi-blue text-white",
+  },
+  Minor: {
+    dot: "bg-emerald-500",
+    text: "text-emerald-500",
+    activePill: "bg-emerald-500 text-white",
+  },
+  Cosmetic: {
+    dot: "bg-violet-500",
+    text: "text-violet-500",
+    activePill: "bg-violet-500 text-white",
+  },
+  Background: {
+    dot: "bg-app-muted",
+    text: "text-app-muted",
+    activePill: "bg-app-muted text-white",
+  },
 };
+
+type Filter = RoadmapCategory | "All";
+const TABS: Filter[] = ["All", "Major", "Minor", "Cosmetic", "Background"];
 
 export default function Roadmap() {
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState<Filter>("All");
+
+  const visibleGroups =
+    filter === "All"
+      ? ROADMAP
+      : ROADMAP.filter((group) => group.category === filter);
 
   return (
     <>
@@ -179,39 +211,64 @@ export default function Roadmap() {
         subtitle="Where ShelfHealth is headed"
         onClose={() => setOpen(false)}
       >
-        <div className="space-y-6">
-          {ROADMAP.map((group) => (
-            <section key={group.category}>
-              <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span
-                  className={`h-2.5 w-2.5 rounded-sm ${CATEGORY_COLOR[group.category].dot}`}
-                />
-                <h3
-                  className={`text-xs font-black uppercase tracking-[0.2em] ${CATEGORY_COLOR[group.category].text}`}
+        <div className="space-y-5">
+          {/* Category toggle */}
+          <div className="flex flex-wrap gap-1 rounded-xl border border-app-border bg-app-inset p-1">
+            {TABS.map((tab) => {
+              const isActive = filter === tab;
+              const activeClass =
+                tab === "All"
+                  ? "bg-app-border text-app-text"
+                  : CATEGORY_COLOR[tab].activePill;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setFilter(tab)}
+                  className={`rounded-lg px-3 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
+                    isActive ? activeClass : "text-app-muted hover:text-app-text"
+                  }`}
                 >
-                  {group.category}
-                </h3>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-app-muted">
-                  {group.blurb}
-                </span>
-              </div>
-              <ul className="space-y-2">
-                {group.items.map((item) => (
-                  <li
-                    key={item.title}
-                    className="rounded-xl border border-app-border bg-app-bg/40 p-3"
+                  {tab}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="space-y-6">
+            {visibleGroups.map((group) => (
+              <section key={group.category}>
+                <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span
+                    className={`h-2.5 w-2.5 rounded-sm ${CATEGORY_COLOR[group.category].dot}`}
+                  />
+                  <h3
+                    className={`text-xs font-black uppercase tracking-[0.2em] ${CATEGORY_COLOR[group.category].text}`}
                   >
-                    <p className="text-xs font-black uppercase tracking-tight text-app-text">
-                      {item.title}
-                    </p>
-                    <p className="mt-1 text-[11px] font-medium leading-snug text-app-muted">
-                      {item.description}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+                    {group.category}
+                  </h3>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-app-muted">
+                    {group.blurb}
+                  </span>
+                </div>
+                <ul className="space-y-2">
+                  {group.items.map((item) => (
+                    <li
+                      key={item.title}
+                      className="rounded-xl border border-app-border bg-app-bg/40 p-3"
+                    >
+                      <p className="text-xs font-black uppercase tracking-tight text-app-text">
+                        {item.title}
+                      </p>
+                      <p className="mt-1 text-[11px] font-medium leading-snug text-app-muted">
+                        {item.description}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         </div>
       </Modal>
     </>
