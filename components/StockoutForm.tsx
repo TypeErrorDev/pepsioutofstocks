@@ -80,6 +80,8 @@ export default function StockoutForm() {
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const autocompleteRef = useRef<HTMLDivElement>(null);
+  const [showStoreSuggestions, setShowStoreSuggestions] = useState(false);
+  const storeAutocompleteRef = useRef<HTMLDivElement>(null);
 
   const canWriteAlerts = isManagement(profile);
 
@@ -95,31 +97,81 @@ export default function StockoutForm() {
     );
   }, [store, salesAlerts]);
 
-  const distinctProducts = useMemo(() => {
+  // Previously-logged items as (product + pack type + location) combos, most
+  // recently logged first and deduped by the exact combo. Picking one can then
+  // pre-fill all three fields at once.
+  const loggedItems = useMemo(() => {
     if (!logs) return [];
-    const unique = new Set<string>();
+    const map = new Map<
+      string,
+      { product: string; packType: string; location: string; at: string }
+    >();
     logs.forEach((log) => {
-      if (log.product) unique.add(log.product.trim());
+      if (!log.product || !log.pack_type || !log.location) return;
+      const productName = log.product.trim();
+      const packType = log.pack_type.trim();
+      const location = log.location.trim();
+      const key =
+        `${productName.toLowerCase()}|${packType.toLowerCase()}` +
+        `|${location.toLowerCase()}`;
+      const at = log.last_verified_at || log.created_at || "";
+      const existing = map.get(key);
+      if (!existing || at > existing.at) {
+        map.set(key, { product: productName, packType, location, at });
+      }
     });
-    return Array.from(unique).sort();
+    return Array.from(map.values()).sort((a, b) => (a.at < b.at ? 1 : -1));
   }, [logs]);
 
   const filteredSuggestions = useMemo(() => {
-    if (!product.trim()) return [];
-    return distinctProducts.filter(
-      (item) =>
-        item.toLowerCase().includes(product.toLowerCase()) &&
-        item.toLowerCase() !== product.toLowerCase(),
-    );
-  }, [product, distinctProducts]);
+    const query = product.trim().toLowerCase();
+    if (!query) return [];
+    return loggedItems
+      .filter((item) => item.product.toLowerCase().includes(query))
+      .slice(0, 8);
+  }, [product, loggedItems]);
+
+  // Distinct store names already on file, deduped case-insensitively (keeping
+  // the most recent spelling), most-recent first — so reusing one keeps store
+  // naming consistent across the app.
+  const distinctStores = useMemo(() => {
+    if (!logs) return [];
+    const map = new Map<string, { store: string; at: string }>();
+    logs.forEach((log) => {
+      const name = log.store?.trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      const at = log.last_verified_at || log.created_at || "";
+      const existing = map.get(key);
+      if (!existing || at > existing.at) map.set(key, { store: name, at });
+    });
+    return Array.from(map.values())
+      .sort((a, b) => (a.at < b.at ? 1 : -1))
+      .map((entry) => entry.store);
+  }, [logs]);
+
+  const storeSuggestions = useMemo(() => {
+    const query = store.trim().toLowerCase();
+    if (!query) return [];
+    return distinctStores
+      .filter((name) => name.toLowerCase().includes(query) && name.toLowerCase() !== query)
+      .slice(0, 8);
+  }, [store, distinctStores]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
       if (
         autocompleteRef.current &&
-        !autocompleteRef.current.contains(e.target as Node)
+        !autocompleteRef.current.contains(target)
       ) {
         setShowSuggestions(false);
+      }
+      if (
+        storeAutocompleteRef.current &&
+        !storeAutocompleteRef.current.contains(target)
+      ) {
+        setShowStoreSuggestions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -338,7 +390,7 @@ export default function StockoutForm() {
           <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
             Store Identity Location
           </label>
-          <div className="relative">
+          <div className="relative" ref={storeAutocompleteRef}>
             <MapPin
               className="absolute left-4 top-3.5 text-app-muted"
               size={14}
@@ -348,9 +400,32 @@ export default function StockoutForm() {
               className="w-full bg-app-inset text-app-text p-3.5 pl-10 rounded-2xl border border-app-border outline-none text-sm font-bold uppercase focus:border-blue-600"
               placeholder="e.g. Safeway #1143"
               value={store}
-              onChange={(e) => setStore(e.target.value)}
+              onChange={(e) => {
+                setStore(e.target.value);
+                setShowStoreSuggestions(true);
+              }}
+              onFocus={() => setShowStoreSuggestions(true)}
+              autoComplete="off"
               required
             />
+            {showStoreSuggestions && storeSuggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-2 bg-app-inset border border-app-border rounded-2xl max-h-48 overflow-y-auto z-40 divide-y divide-app-border">
+                {storeSuggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      setStore(s);
+                      setShowStoreSuggestions(false);
+                    }}
+                    className="w-full flex items-center gap-2 text-left px-5 py-3 text-xs font-black text-app-text hover:bg-app-card uppercase"
+                  >
+                    <MapPin size={12} className="shrink-0 text-pepsi-blue" />
+                    <span className="truncate">{s}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           {store.trim() && activeFormMode === "alert" && (
             <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.3em] text-app-muted mt-1">
@@ -400,15 +475,22 @@ export default function StockoutForm() {
                 <div className="absolute left-0 right-0 top-full mt-2 bg-app-inset border border-app-border rounded-2xl max-h-48 overflow-y-auto z-40 divide-y divide-app-border">
                   {filteredSuggestions.map((s) => (
                     <button
-                      key={s}
+                      key={`${s.product}|${s.packType}|${s.location}`}
                       type="button"
                       onClick={() => {
-                        setProduct(s);
+                        setProduct(s.product);
+                        setType(s.packType);
+                        setLocation(s.location);
                         setShowSuggestions(false);
                       }}
-                      className="w-full text-left px-5 py-3 text-xs font-black text-app-text hover:bg-app-card uppercase"
+                      className="w-full flex items-center justify-between gap-3 px-5 py-3 text-left hover:bg-app-card"
                     >
-                      {s}
+                      <span className="text-xs font-black uppercase text-app-text truncate">
+                        {s.product}
+                      </span>
+                      <span className="shrink-0 text-[9px] font-black uppercase tracking-wider text-app-muted">
+                        {s.packType} · {s.location}
+                      </span>
                     </button>
                   ))}
                 </div>
