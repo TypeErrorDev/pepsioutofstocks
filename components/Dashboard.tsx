@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import StockoutForm from "./StockoutForm";
 import LogTable from "./LogTable";
+import Roadmap from "./Roadmap";
 
 export default function Dashboard() {
   const { profile, logs } = useTracker();
@@ -132,6 +133,8 @@ export default function Dashboard() {
               TypeErrorDev
             </a>
           </span>
+          <span className="w-1.5 h-1.5 bg-app-border rounded-full" />
+          <Roadmap />
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
