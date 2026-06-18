@@ -38,6 +38,18 @@ describe("Roadmap", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("includes a Sales category with the store-scoped reorder watchlist", () => {
+    render(<Roadmap />);
+    fireEvent.click(screen.getByRole("button", { name: /road map/i }));
+    const dialog = screen.getByRole("dialog");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Sales" }));
+    expect(within(dialog).getByText(/Reorder watchlist/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/per store \+ product/i)).toBeInTheDocument();
+    // Sales filter hides the other categories.
+    expect(within(dialog).queryByText(/Offline-first/i)).not.toBeInTheDocument();
+  });
+
   it("resets the filter to All when the modal is reopened", () => {
     render(<Roadmap />);
 

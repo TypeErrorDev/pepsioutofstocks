@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Map as RoadmapIcon } from "lucide-react";
 import Modal from "./Modal";
 
-type RoadmapCategory = "Major" | "Minor" | "Cosmetic" | "Background";
+type RoadmapCategory = "Sales" | "Major" | "Minor" | "Cosmetic" | "Background";
 
 interface RoadmapItem {
   title: string;
@@ -22,6 +22,42 @@ interface RoadmapGroup {
    move an item between groups; the modal renders straight from this array.
    =========================================================================== */
 const ROADMAP: RoadmapGroup[] = [
+  {
+    category: "Sales",
+    blurb: "Turning out-of-stocks into recovered sales",
+    items: [
+      {
+        title: "Reorder watchlist (per store)",
+        description:
+          "Predicts each store's next stockout from THAT store's own log + resolution history and flags items to order deeper or more often. Scoped strictly per store + product — one account's history never affects another's.",
+      },
+      {
+        title: "Lost-sales estimate",
+        description:
+          "Dollarize out-of-stocks per store, SKU, and territory using product velocity, so a gap reads as recoverable revenue.",
+      },
+      {
+        title: "Account & territory scorecard",
+        description:
+          "Rank accounts by lost-sales risk and track the sales recovered per rep.",
+      },
+      {
+        title: "Promo stock-up alerts",
+        description:
+          "Flag items at stockout risk ahead of an upcoming promotion so reps order deep.",
+      },
+      {
+        title: "Order-writer action routing",
+        description:
+          "Separate the gaps an order-writer can fix (ordering errors) from supply or merchandising issues.",
+      },
+      {
+        title: "Rep call-list digest",
+        description:
+          "A weekly, per-rep list of accounts to fix and the order adjustments to make.",
+      },
+    ],
+  },
   {
     category: "Major",
     blurb: "Big, transformative features",
@@ -160,6 +196,11 @@ const CATEGORY_COLOR: Record<
   RoadmapCategory,
   { dot: string; text: string; activePill: string }
 > = {
+  Sales: {
+    dot: "bg-amber-500",
+    text: "text-amber-500",
+    activePill: "bg-amber-500 text-slate-900",
+  },
   Major: {
     dot: "bg-pepsi-blue",
     text: "text-pepsi-blue",
@@ -183,7 +224,14 @@ const CATEGORY_COLOR: Record<
 };
 
 type Filter = RoadmapCategory | "All";
-const TABS: Filter[] = ["All", "Major", "Minor", "Cosmetic", "Background"];
+const TABS: Filter[] = [
+  "All",
+  "Sales",
+  "Major",
+  "Minor",
+  "Cosmetic",
+  "Background",
+];
 
 export default function Roadmap() {
   const [open, setOpen] = useState(false);
