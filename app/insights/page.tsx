@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Circle,
   CheckCircle,
+  FileSpreadsheet,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -48,6 +49,9 @@ export default function InsightsPage() {
   // Closeout Reason Sub-Modal States
   const [reasonModalId, setReasonModalId] = useState<string | null>(null);
   const [validationReason, setValidationReason] = useState("");
+
+  // Excel export state
+  const [isExporting, setIsExporting] = useState(false);
 
   // Promo calendar for the promo-impact analytics. Loaded here (not in the
   // shared TrackerContext) so the live auth/logging path stays untouched, and
@@ -207,6 +211,25 @@ export default function InsightsPage() {
     endDate,
   ]);
 
+  // Export the currently-filtered logs to a styled .xlsx. exceljs is loaded
+  // lazily (on click) so it never weighs down the initial page bundle.
+  const handleExport = async () => {
+    if (isExporting || filteredLogs.length === 0) return;
+    setIsExporting(true);
+    try {
+      const { downloadInsightsXlsx } = await import("@/lib/exportInsights");
+      const today = new Date().toISOString().slice(0, 10);
+      await downloadInsightsXlsx(
+        filteredLogs,
+        `shelf-health-insights-${today}.xlsx`,
+      );
+    } catch (err) {
+      console.error("Insights export failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // --- ACCOUNT VELOCITY RANKINGS ---
   const storeRankings = useMemo(() => {
     const storeMap: Record<
@@ -325,7 +348,23 @@ export default function InsightsPage() {
             {profile?.role?.toUpperCase()}
           </p>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting || filteredLogs.length === 0}
+            title={
+              filteredLogs.length === 0
+                ? "No logs match the current filters"
+                : "Export the filtered logs to Excel"
+            }
+            className="flex items-center gap-2 rounded-xl border border-app-border bg-app-card px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-pepsi-blue hover:border-pepsi-blue/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <FileSpreadsheet size={14} />
+            {isExporting ? "Exporting..." : "Export"}
+          </button>
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* CONTROL INPUT ENGINE */}
