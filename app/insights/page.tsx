@@ -217,11 +217,23 @@ export default function InsightsPage() {
     if (isExporting || filteredLogs.length === 0) return;
     setIsExporting(true);
     try {
-      const { downloadInsightsXlsx } = await import("@/lib/exportInsights");
+      const { downloadInsightsXlsx, describeFilters } = await import(
+        "@/lib/exportInsights"
+      );
       const today = new Date().toISOString().slice(0, 10);
+      const subtitle = describeFilters({
+        status: statusFilter,
+        mode: filterMode,
+        timeValue,
+        timeUnit,
+        startDate,
+        endDate,
+        search: searchQuery,
+      });
       await downloadInsightsXlsx(
         filteredLogs,
         `shelf-health-insights-${today}.xlsx`,
+        subtitle,
       );
     } catch (err) {
       console.error("Insights export failed:", err);
