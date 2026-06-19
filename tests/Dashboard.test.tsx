@@ -64,11 +64,13 @@ describe("Dashboard resolution leader stat", () => {
 
     render(<Dashboard />);
 
-    expect(screen.getByText("Resolution Leader")).toBeInTheDocument();
+    expect(screen.getByText("Top Resolved Store")).toBeInTheDocument();
     // The store also appears in log-table rows, so target the stat card's
     // title-attributed heading specifically.
     expect(screen.getByTitle("QFC #1")).toBeInTheDocument();
-    expect(screen.getByText(/2 resolved · past 7 days/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/2 resolved · rolling 7 days/i),
+    ).toBeInTheDocument();
   });
 
   it("shows an empty state when nothing was resolved recently", () => {

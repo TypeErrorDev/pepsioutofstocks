@@ -30,7 +30,7 @@ const PACK_TYPES = [
   "1.25L",
   "Singles",
 ];
-const LOCATIONS = ["Main Shelf", "Coolers"];
+const LOCATIONS = ["Main Shelf", "Coolers", "Checkout Coolers", "Shippers"];
 const ROOT_CAUSES = [
   "Warehouse OOS",
   "Ordering Error",
@@ -154,7 +154,10 @@ export default function StockoutForm() {
     const query = store.trim().toLowerCase();
     if (!query) return [];
     return distinctStores
-      .filter((name) => name.toLowerCase().includes(query) && name.toLowerCase() !== query)
+      .filter(
+        (name) =>
+          name.toLowerCase().includes(query) && name.toLowerCase() !== query,
+      )
       .slice(0, 8);
   }, [store, distinctStores]);
 
@@ -388,7 +391,7 @@ export default function StockoutForm() {
         {/* SHARED STORE IDENTITY FIELD BASELINE */}
         <div className="space-y-1">
           <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
-            Store Identity Location
+            Store Name + ID
           </label>
           <div className="relative" ref={storeAutocompleteRef}>
             <MapPin
@@ -450,7 +453,7 @@ export default function StockoutForm() {
             {/* PRODUCT SELECTION WITH AUTOCOMPLETE */}
             <div className="space-y-1 relative" ref={autocompleteRef}>
               <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
-                Product / SKU
+                Product
               </label>
               <div className="relative">
                 <Package
@@ -519,7 +522,7 @@ export default function StockoutForm() {
             {/* DISPLAY LOCATION MATRIX SELECTOR */}
             <div className="space-y-2">
               <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
-                Store Layout Segment
+                Location of the gap
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {LOCATIONS.map((loc) => (
@@ -725,7 +728,7 @@ export default function StockoutForm() {
             ? "SYNCING PROCESS..."
             : activeFormMode === "alert"
               ? "BROADCAST FIELD ALERT"
-              : "LOG FIELD GAP / VERIFY"}
+              : "LOG OUT OF STOCK"}
         </button>
       </form>
     </div>
