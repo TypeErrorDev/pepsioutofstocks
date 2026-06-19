@@ -279,9 +279,17 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     role: UserRole,
   ) => {
     try {
+      const username = email.split("@")[0];
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          // The handle_new_user DB trigger builds the profile row from this
+          // metadata. gpid in particular is UNIQUE, so the real value must be
+          // sent — otherwise the trigger falls back to a constant and every
+          // signup after the first collides on profiles_gpid_key.
+          data: { full_name: fullName, gpid, role, username },
+        },
       });
       if (error) throw error;
 
@@ -290,20 +298,9 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Unable to create user account.");
       }
 
-      const username = email.split("@")[0];
-      const { error: profileError } = await supabase.from("profiles").insert([
-        {
-          id: newUser.id,
-          username,
-          full_name: fullName,
-          gpid,
-          role,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (profileError) throw profileError;
-
+      // The profile row is created server-side by the trigger from the
+      // metadata above, so we do not insert it here (that would collide on the
+      // primary key).
       setUser(newUser);
       setProfile({
         id: newUser.id,
