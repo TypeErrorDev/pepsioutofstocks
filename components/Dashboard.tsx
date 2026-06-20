@@ -76,7 +76,7 @@ export default function Dashboard() {
       {/* --- STATS GRID --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Active Field Logs"
+          title="Active Logs"
           value={totalLogs}
           icon={<Package size={20} />}
           color="text-pepsi-blue"
@@ -94,11 +94,11 @@ export default function Dashboard() {
           color="text-emerald-500"
         />
         <StatCard
-          title="Resolution Leader"
+          title="Top Resolved Store"
           value={resolutionLeader ? resolutionLeader.store : "—"}
           hint={
             resolutionLeader
-              ? `${resolutionLeader.resolved} resolved · past 7 days`
+              ? `${resolutionLeader.resolved} resolved · rolling 7 days`
               : "No resolutions in the past 7 days"
           }
           icon={<Trophy size={20} />}
@@ -120,26 +120,20 @@ export default function Dashboard() {
 
       <footer className="pt-10 border-t border-app-border/50 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
-          <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
-            Verified Terminal: {profile?.full_name}
-          </span>
-          <span className="w-1.5 h-1.5 bg-app-border rounded-full" />
-          <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
-            GPID: {profile?.gpid}
-          </span>
-          <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
+          <span className="text-[15px] font-black text-app-muted uppercase tracking-[0.3em]">
             ©2026{" "}
             <a target="_blank" href="https://www.x.com/TypeErrorDev">
-              TypeErrorDev
-            </a>
+              Matthew Pantel
+            </a>{" "}
+            | All Rights Reserved
           </span>
           <span className="w-1.5 h-1.5 bg-app-border rounded-full" />
           <Roadmap />
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-[9px] font-black text-app-muted uppercase tracking-[0.3em]">
-            System Active
+          <span className="text-[15px] font-black text-app-muted uppercase tracking-[0.3em]">
+            Database Status
           </span>
         </div>
       </footer>

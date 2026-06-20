@@ -8,6 +8,7 @@ type RoadmapCategory = "Sales" | "Major" | "Minor" | "Cosmetic" | "Background";
 interface RoadmapItem {
   title: string;
   description: string;
+  status?: "Completed" | "In Progress" | "Planned";
 }
 
 interface RoadmapGroup {
@@ -17,45 +18,47 @@ interface RoadmapGroup {
 }
 
 /* ===========================================================================
-   ROADMAP — EDIT HERE
+   ROADMAP
    Grouped by Major / Minor / Cosmetic / Background. Add, remove, reorder, or
    move an item between groups; the modal renders straight from this array.
    =========================================================================== */
 const ROADMAP: RoadmapGroup[] = [
   {
     category: "Sales",
-    blurb: "Turning out-of-stocks into recovered sales",
+    blurb: "Features that drive sales",
     items: [
       {
         title: "Reorder watchlist (per store)",
         description:
           "Predicts each store's next stockout from THAT store's own log + resolution history and flags items to order deeper or more often. Scoped strictly per store + product — one account's history never affects another's.",
+        status: "In Progress",
       },
-      {
-        title: "Lost-sales estimate",
-        description:
-          "Dollarize out-of-stocks per store, SKU, and territory using product velocity, so a gap reads as recoverable revenue.",
-      },
-      {
-        title: "Account & territory scorecard",
-        description:
-          "Rank accounts by lost-sales risk and track the sales recovered per rep.",
-      },
+      // {
+      //   title: "Lost-sales estimate",
+      //   description:
+      //     "Dollarize out-of-stocks per store, SKU, and territory using product velocity, so a gap reads as recoverable revenue.",
+      // },
+      // {
+      //   title: "Account & territory scorecard",
+      //   description:
+      //     "Rank accounts by lost-sales risk and track the sales recovered per rep.",
+      // },
       {
         title: "Promo stock-up alerts",
         description:
           "Flag items at stockout risk ahead of an upcoming promotion so reps order deep.",
       },
       {
-        title: "Order-writer action routing",
+        title: "Sales Rep action routing",
         description:
-          "Separate the gaps an order-writer can fix (ordering errors) from supply or merchandising issues.",
+          "Separate the gaps a Sales Rep can fix (ordering errors) from supply or merchandising issues.",
       },
-      {
-        title: "Rep call-list digest",
-        description:
-          "A weekly, per-rep list of accounts to fix and the order adjustments to make.",
-      },
+      // {
+      //   // I want to add a feature that will automatically export a weekly recap of the logs for each store, then send it automatically via email to the relevant stakeholders.
+      //   title: "Weekly Recap Export",
+      //   description:
+      //     "Automatically export and filter the logs for each store to Excel and send it via email to the relevant stakeholders.",
+      // },
     ],
   },
   {
@@ -65,40 +68,41 @@ const ROADMAP: RoadmapGroup[] = [
       {
         title: "Offline-first / PWA",
         description:
-          "Installable app that keeps logging without signal and syncs when you reconnect.",
+          "The app will work offline/no signal and sync all data when the connection is restored.",
+        status: "In Progress",
       },
       {
         title: "Store-session bulk logging",
         description:
           "Pick a store once, then rapid-add multiple items without re-entering it.",
       },
-      {
-        title: "Barcode / UPC scan",
-        description: "Use the phone camera to auto-fill the product.",
-      },
-      {
-        title: "Photo evidence",
-        description: "Attach a shelf photo to a log for stronger proof.",
-      },
-      {
-        title: "Stores & territories",
-        description:
-          "Real store records (chain, region) with rep assignment; the root fix for naming drift.",
-      },
+      // {
+      //   title: "Barcode / UPC scan",
+      //   description: "Use the phone camera to auto-fill the product.",
+      // },
+      // {
+      //   title: "Photo evidence",
+      //   description: "Attach a shelf photo to a log for stronger proof.",
+      // },
+      // {
+      //   title: "Stores & territories",
+      //   description:
+      //     "Real store records (chain, region) with rep assignment; the root fix for naming drift.",
+      // },
       {
         title: "Scheduled manager digest",
         description:
           "Weekly automated email of trends, chronic offenders, and promo overlap.",
       },
-      {
-        title: "Admin & role management",
-        description: "Manage users, roles, and territory assignments in-app.",
-      },
-      {
-        title: "Targets & exec summary",
-        description:
-          "Set OOS-reduction goals and export a one-click PDF summary for meetings.",
-      },
+      // {
+      //   title: "Admin & role management",
+      //   description: "Manage users, roles, and territory assignments in-app.",
+      // },
+      // {
+      //   title: "Targets & exec summary",
+      //   description:
+      //     "Set OOS-reduction goals and export a one-click PDF summary for meetings.",
+      // },
     ],
   },
   {
@@ -112,16 +116,19 @@ const ROADMAP: RoadmapGroup[] = [
       },
       {
         title: "Promo-calendar editor",
-        description: "Manage promotions so the Promo Impact insight has data.",
+        description:
+          "Edit and manage the promotional calendar directly in the app.",
       },
       {
-        title: "Threshold notifications",
-        description: "Alert when a gap stays open beyond a set number of days.",
+        title: "Out-of-Stock notifications",
+        description:
+          "Notify Team Leads/Sales Reps when a product is out of stock for a specific length of time.",
       },
       {
         title: "CSV export",
         description:
           "A lightweight export option alongside the styled Excel file.",
+        status: "Completed",
       },
     ],
   },
@@ -141,6 +148,7 @@ const ROADMAP: RoadmapGroup[] = [
       {
         title: "Loading skeletons & empty states",
         description: "Smoother first paint and friendlier empty screens.",
+        status: "In Progress",
       },
       {
         title: "Branding touches",
@@ -153,11 +161,11 @@ const ROADMAP: RoadmapGroup[] = [
     category: "Background",
     blurb: "Security, performance, reliability",
     items: [
-      {
-        title: "Tighten row-level security",
-        description:
-          "Per-role / ownership rules so users only edit what they should.",
-      },
+      // {
+      //   title: "Tighten row-level security",
+      //   description:
+      //     "Per-role / ownership rules so users only edit what they should.",
+      // },
       {
         title: "Scalable data loading",
         description:
@@ -165,20 +173,24 @@ const ROADMAP: RoadmapGroup[] = [
       },
       {
         title: "Incremental realtime",
-        description: "Apply changed rows live instead of refetching the whole table.",
+        description:
+          "Apply changed rows live instead of refetching the whole table.",
+        status: "In Progress",
       },
       {
         title: "Automated backups",
         description: "Scheduled database backups kept off-site.",
       },
-      {
-        title: "httpOnly auth hardening",
-        description: "Server-managed session cookies for stronger XSS protection.",
-      },
-      {
-        title: "CI gate",
-        description: "Run lint, types, tests, and build automatically on every PR.",
-      },
+      // {
+      //   title: "httpOnly auth hardening",
+      //   description:
+      //     "Server-managed session cookies for stronger XSS protection.",
+      // },
+      // {
+      //   title: "CI gate",
+      //   description:
+      //     "Run lint, types, tests, and build automatically on every PR.",
+      // },
       {
         title: "End-to-end tests",
         description: "Automated browser coverage of login → log → export.",
@@ -223,6 +235,12 @@ const CATEGORY_COLOR: Record<
   },
 };
 
+const STATUS_CLASS: Record<"Completed" | "In Progress" | "Planned", string> = {
+  Completed: "bg-emerald-500 text-white",
+  "In Progress": "bg-amber-500 text-slate-900",
+  Planned: "bg-app-border text-app-text",
+};
+
 type Filter = RoadmapCategory | "All";
 const TABS: Filter[] = [
   "All",
@@ -250,9 +268,9 @@ export default function Roadmap() {
           setFilter("All");
           setOpen(true);
         }}
-        className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.3em] text-app-muted transition-colors hover:text-pepsi-blue cursor-pointer"
+        className="flex items-center gap-1.5 text-[15px] font-black uppercase tracking-[0.3em] text-app-muted transition-colors hover:text-pepsi-blue cursor-pointer"
       >
-        <RoadmapIcon size={11} />
+        <RoadmapIcon size={20} />
         Road Map
       </button>
 
@@ -277,7 +295,9 @@ export default function Roadmap() {
                   type="button"
                   onClick={() => setFilter(tab)}
                   className={`rounded-lg px-3 py-1.5 text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
-                    isActive ? activeClass : "text-app-muted hover:text-app-text"
+                    isActive
+                      ? activeClass
+                      : "text-app-muted hover:text-app-text"
                   }`}
                 >
                   {tab}
@@ -308,9 +328,18 @@ export default function Roadmap() {
                       key={item.title}
                       className="rounded-xl border border-app-border bg-app-bg/40 p-3"
                     >
-                      <p className="text-xs font-black uppercase tracking-tight text-app-text">
-                        {item.title}
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-xs font-black uppercase tracking-tight text-app-text">
+                          {item.title}
+                        </p>
+                        {item.status && (
+                          <span
+                            className={`ml-2 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_CLASS[item.status]}`}
+                          >
+                            {item.status}
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-1 text-[11px] font-medium leading-snug text-app-muted">
                         {item.description}
                       </p>

@@ -134,7 +134,7 @@ describe("StockoutForm", () => {
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: /log field gap \/ verify/i }),
+      screen.getByRole("button", { name: /log out of stock/i }),
     );
     expect(mockAddLog).not.toHaveBeenCalled();
   });
@@ -167,7 +167,7 @@ describe("StockoutForm", () => {
       target: { value: "5406" },
     });
     fireEvent.click(
-      screen.getByRole("button", { name: /log field gap \/ verify/i }),
+      screen.getByRole("button", { name: /log out of stock/i }),
     );
 
     expect(mockAddLog).toHaveBeenCalledWith(
