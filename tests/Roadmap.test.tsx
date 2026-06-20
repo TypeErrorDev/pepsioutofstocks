@@ -14,7 +14,7 @@ describe("Roadmap", () => {
     expect(within(dialog).getByText(/Offline-first/i)).toBeInTheDocument();
     expect(within(dialog).getByText(/time-to-resolve/i)).toBeInTheDocument();
     expect(
-      within(dialog).getByText(/Tighten row-level security/i),
+      within(dialog).getByText(/Automated backups/i),
     ).toBeInTheDocument();
   });
 
@@ -26,7 +26,7 @@ describe("Roadmap", () => {
     // Filter to Background only.
     fireEvent.click(within(dialog).getByRole("button", { name: "Background" }));
     expect(
-      within(dialog).getByText(/Tighten row-level security/i),
+      within(dialog).getByText(/Automated backups/i),
     ).toBeInTheDocument();
     expect(within(dialog).queryByText(/Offline-first/i)).not.toBeInTheDocument();
 

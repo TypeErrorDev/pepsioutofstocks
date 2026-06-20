@@ -522,7 +522,7 @@ export default function StockoutForm() {
             {/* DISPLAY LOCATION MATRIX SELECTOR */}
             <div className="space-y-2">
               <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
-                Location of the gap
+                Location of the product
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {LOCATIONS.map((loc) => (
@@ -541,7 +541,7 @@ export default function StockoutForm() {
             {/* ROOT CAUSES SELECTOR CONFIGURATION */}
             <div className="space-y-1">
               <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
-                Logistical Cause
+                Root Cause for the Gap
               </label>
               <div className="relative">
                 <AlertCircle
@@ -566,10 +566,10 @@ export default function StockoutForm() {
               </div>
             </div>
 
-            {/* ADDITIONAL OBSERVATION NOTES */}
+            {/* ADDITIONAL NOTES */}
             <div className="space-y-1">
               <label className="text-[9px] font-black text-app-muted uppercase ml-1 tracking-[0.2em]">
-                Field Observations
+                Merch Notes
               </label>
               <div className="relative">
                 <MessageSquare
@@ -725,9 +725,9 @@ export default function StockoutForm() {
           className={`w-full text-white font-black py-4 rounded-2xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${activeFormMode === "alert" ? "bg-blue-600 shadow-xl shadow-blue-600/10" : "bg-pepsi-blue"}`}
         >
           {isSubmitting
-            ? "SYNCING PROCESS..."
+            ? "SYNCING IN PROGRESS..."
             : activeFormMode === "alert"
-              ? "BROADCAST FIELD ALERT"
+              ? "BROADCAST STORE ALERT"
               : "LOG OUT OF STOCK"}
         </button>
       </form>
