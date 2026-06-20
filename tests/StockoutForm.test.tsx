@@ -109,7 +109,7 @@ describe("StockoutForm", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: /broadcast field alert/i }),
+      screen.getByRole("button", { name: /broadcast store alert/i }),
     );
 
     expect(
