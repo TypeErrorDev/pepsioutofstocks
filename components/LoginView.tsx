@@ -157,7 +157,7 @@ export default function LoginView() {
             onClick={() => setIsRegistering(!isRegistering)}
             className="w-full mt-4 text-[10px] font-black text-pepsi-blue uppercase tracking-widest hover:underline"
           >
-            {isRegistering ? "Back to Login" : "Register Personnel"}
+            {/* {isRegistering ? "Back to Login" : "Register Personnel"} */}
           </button>
         </div>
       </div>
