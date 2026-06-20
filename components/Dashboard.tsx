@@ -120,19 +120,20 @@ export default function Dashboard() {
 
       <footer className="pt-10 border-t border-app-border/50 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
-          <span className="text-[11px] font-black text-app-muted uppercase tracking-[0.3em]">
+          <span className="text-[15px] font-black text-app-muted uppercase tracking-[0.3em]">
             ©2026{" "}
             <a target="_blank" href="https://www.x.com/TypeErrorDev">
-              TypeErrorDev
-            </a>
+              Matthew Pantel
+            </a>{" "}
+            | All Rights Reserved
           </span>
           <span className="w-1.5 h-1.5 bg-app-border rounded-full" />
           <Roadmap />
         </div>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-[11px] font-black text-app-muted uppercase tracking-[0.3em]">
-            System Active
+          <span className="text-[15px] font-black text-app-muted uppercase tracking-[0.3em]">
+            Database Status
           </span>
         </div>
       </footer>
