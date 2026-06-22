@@ -194,11 +194,16 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     // safe to await Supabase queries here.
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => {
+      .then(async ({ data: { session } }) => {
         if (!active) return;
         if (session?.user) {
           setUser(session.user);
-          void loadUserData(session.user.id);
+          // Await the initial load (profile included) before `loading` clears
+          // below. Otherwise `loading` flips false while the profile is still
+          // in flight, and role-gated pages like Insights flash "Access Denied"
+          // for a frame on refresh. Safe to await here — this is the session
+          // restore, not the auth-lock callback.
+          await loadUserData(session.user.id);
         }
       })
       .catch((error) => console.error("Auth init failure:", error))
