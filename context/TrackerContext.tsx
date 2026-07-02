@@ -156,7 +156,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Load everything a signed-in user needs in one place.
   const loadUserData = useCallback(
     async (userId: string) => {
       await Promise.all([
@@ -189,9 +188,6 @@ export function TrackerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
-
-    // Initial session restore. This runs outside the auth callback, so it is
-    // safe to await Supabase queries here.
     supabase.auth
       .getSession()
       .then(async ({ data: { session } }) => {
