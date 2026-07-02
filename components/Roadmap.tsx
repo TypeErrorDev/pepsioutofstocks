@@ -181,6 +181,11 @@ const ROADMAP: RoadmapGroup[] = [
         title: "Automated backups",
         description: "Scheduled database backups kept off-site.",
       },
+      {
+        title: "De-duplicate open gaps",
+        description:
+          "Normalize store names so the same gap can't split into duplicate logs, and resolve look-alike open gaps together (with confirmation).",
+      },
       // {
       //   title: "httpOnly auth hardening",
       //   description:
