@@ -61,6 +61,33 @@ describe("buildExportRows", () => {
   it("is empty-safe", () => {
     expect(buildExportRows([])).toEqual([]);
   });
+
+  it("orders rows: open first, then most-recently-verified", () => {
+    const rows = buildExportRows([
+      makeLog({
+        product: "ResolvedNew",
+        is_worked: true,
+        last_verified_at: "2026-06-20T00:00:00Z",
+      }),
+      makeLog({
+        product: "OpenOld",
+        is_worked: false,
+        last_verified_at: "2026-06-05T00:00:00Z",
+      }),
+      makeLog({
+        product: "OpenNew",
+        is_worked: false,
+        last_verified_at: "2026-06-18T00:00:00Z",
+      }),
+    ]);
+    // Open gaps on top (newest verified first); resolved last, even though it
+    // was verified most recently of the three.
+    expect(rows.map((r) => r.product)).toEqual([
+      "OpenNew",
+      "OpenOld",
+      "ResolvedNew",
+    ]);
+  });
 });
 
 describe("describeFilters", () => {

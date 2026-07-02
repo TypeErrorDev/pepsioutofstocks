@@ -49,9 +49,21 @@ export interface ExportRow {
  * Flatten logs into export rows. Resolution time uses updated_at and is only
  * filled for worked rows (see analytics: updated_at is the resolution stamp for
  * resolved gaps). One row per log; column order follows EXPORT_COLUMNS.
+ *
+ * Rows are ordered for the reader: open gaps first, then most-recently-verified
+ * within each status group — so a manager opens the sheet with live gaps on top.
+ * Sorting happens on the raw log fields here (before lastVerified is formatted
+ * to a display string, which wouldn't sort chronologically).
  */
 export function buildExportRows(logs: StockoutLog[]): ExportRow[] {
-  return logs.map((log) => ({
+  const activityTime = (l: StockoutLog) =>
+    new Date(l.last_verified_at || l.created_at).getTime();
+  const ordered = [...logs].sort(
+    (a, b) =>
+      Number(a.is_worked) - Number(b.is_worked) || // Open (false) before Resolved (true)
+      activityTime(b) - activityTime(a), // then most recently verified first
+  );
+  return ordered.map((log) => ({
     store: log.store ?? "",
     product: log.product ?? "",
     packType: log.pack_type ?? "",
