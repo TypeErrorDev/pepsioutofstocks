@@ -94,6 +94,11 @@ const ROADMAP: RoadmapGroup[] = [
         description:
           "Weekly automated email of trends, chronic offenders, and promo overlap.",
       },
+      {
+        title: "Power BI dashboard",
+        description:
+          "Connect Power BI to the data (read-only) for a manager dashboard — KPIs, root-cause and trend analysis, and store scorecards beyond the in-app insights.",
+      },
       // {
       //   title: "Admin & role management",
       //   description: "Manage users, roles, and territory assignments in-app.",
