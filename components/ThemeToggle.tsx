@@ -2,16 +2,6 @@
 import React from "react";
 import { Sun, Moon } from "lucide-react";
 
-/**
- * Light/dark toggle. The active theme is the `data-theme` attribute on <html>
- * (applied before paint by the inline script in the root layout) and is
- * persisted in a cookie. The sun/moon icons are driven purely by CSS off that
- * attribute, so this component holds no state — no hydration mismatch, and the
- * markup is identical on server and client.
- *
- * During a switch we add `theme-no-transition` to the root so every element
- * flips instantly and in sync — no animation desync that would read as a glitch.
- */
 export default function ThemeToggle() {
   const toggle = () => {
     const root = document.documentElement;
@@ -21,9 +11,7 @@ export default function ThemeToggle() {
     document.cookie = `theme=${next}; path=/; max-age=31536000; SameSite=Lax`;
     // Re-enable transitions after the paint that applied the new theme.
     requestAnimationFrame(() =>
-      requestAnimationFrame(() =>
-        root.classList.remove("theme-no-transition"),
-      ),
+      requestAnimationFrame(() => root.classList.remove("theme-no-transition")),
     );
   };
 

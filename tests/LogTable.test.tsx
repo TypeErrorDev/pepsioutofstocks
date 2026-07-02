@@ -158,3 +158,51 @@ describe("LogTable detail drawer", () => {
     expect(screen.queryByText("1143")).not.toBeInTheDocument();
   });
 });
+
+describe("LogTable sort toggle", () => {
+  it("reorders the active list by the selected sort mode", () => {
+    mockUseTracker.mockReturnValue({
+      logs: [
+        makeLog({ id: "A", product: "Pepsi", verification_count: 9, last_verified_at: "2026-06-10T00:00:00Z" }),
+        makeLog({ id: "B", product: "Starry", verification_count: 1, last_verified_at: "2026-06-20T00:00:00Z" }),
+        makeLog({ id: "C", product: "Mtn Dew", verification_count: 5, last_verified_at: "2026-06-01T00:00:00Z" }),
+      ],
+      profile: {
+        id: "u",
+        username: "qa",
+        full_name: "QA Lead",
+        gpid: "1",
+        role: "admin",
+        created_at: "",
+      },
+      loading: false,
+      toggleWorkedStatus: vi.fn(),
+      addLog: vi.fn(),
+    });
+
+    render(<LogTable />);
+
+    // Read the product in each data row, top to bottom (skip the header row).
+    const order = () =>
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((r) => {
+          const text = r.textContent || "";
+          if (text.includes("Starry")) return "Starry";
+          if (text.includes("Mtn Dew")) return "Mtn Dew";
+          return "Pepsi";
+        });
+
+    // Default = Recent activity: newest last_verified_at first.
+    expect(order()).toEqual(["Starry", "Pepsi", "Mtn Dew"]);
+
+    // Longest streak first (button, not the "Streak" column header).
+    fireEvent.click(screen.getByRole("button", { name: "Streak" }));
+    expect(order()).toEqual(["Pepsi", "Mtn Dew", "Starry"]);
+
+    // Oldest = least-recently-verified first.
+    fireEvent.click(screen.getByRole("button", { name: "Oldest" }));
+    expect(order()).toEqual(["Mtn Dew", "Pepsi", "Starry"]);
+  });
+});
