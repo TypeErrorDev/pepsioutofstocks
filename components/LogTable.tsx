@@ -23,6 +23,12 @@ export default function LogTable() {
   // Live store input filter state
   const [searchInput, setSearchInput] = useState("");
 
+  // Sort mode for the active-gap list. Self-contained (a bit of state + a sort
+  // pass), so it's easy to pull out when the dashboard is revamped.
+  const [sortMode, setSortMode] = useState<"recent" | "streak" | "oldest">(
+    "recent",
+  );
+
   const itemsPerPage = 10;
 
   // --- SCROLL LOCK BOUNDARY ---
@@ -70,14 +76,35 @@ export default function LogTable() {
     return data;
   }, [activeLogs, userIsManagement, profile, searchInput]);
 
+  // Sort the filtered list. "recent" = last verified/logged first (so a
+  // re-validation floats to the top), "streak" = chronic offenders first,
+  // "oldest" = least-recently-verified first (the ones due for a look).
+  const sortedLogs = useMemo(() => {
+    const activityTime = (l: StockoutLog) =>
+      new Date(l.last_verified_at || l.created_at).getTime();
+    const rows = [...finalFilteredLogs];
+    if (sortMode === "streak") {
+      rows.sort(
+        (a, b) =>
+          (b.verification_count || 1) - (a.verification_count || 1) ||
+          activityTime(b) - activityTime(a),
+      );
+    } else if (sortMode === "oldest") {
+      rows.sort((a, b) => activityTime(a) - activityTime(b));
+    } else {
+      rows.sort((a, b) => activityTime(b) - activityTime(a));
+    }
+    return rows;
+  }, [finalFilteredLogs, sortMode]);
+
   // --- PAGINATION MATHEMATICS ---
-  const totalPages = Math.ceil(finalFilteredLogs.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedLogs.length / itemsPerPage);
   const currentLogs = useMemo(() => {
-    return finalFilteredLogs.slice(
+    return sortedLogs.slice(
       (currentPage - 1) * itemsPerPage,
       currentPage * itemsPerPage,
     );
-  }, [finalFilteredLogs, currentPage]);
+  }, [sortedLogs, currentPage]);
 
   const buildAuditHistory = (log: StockoutLog) => {
     const history: Array<{
@@ -213,7 +240,7 @@ export default function LogTable() {
             Live Inventory Gaps
           </h3>
           <span className="text-[8px] font-bold text-app-muted uppercase tracking-widest">
-            {finalFilteredLogs.length} Gaps Displayed
+            {sortedLogs.length} Gaps Displayed
           </span>
         </div>
 
@@ -246,25 +273,56 @@ export default function LogTable() {
           )}
         </div>
 
-        {/* FEED TABLE PAGINATION FOOTPRINT */}
-        <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border self-end sm:self-auto">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
-            className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30 cursor-pointer"
-          >
-            ◀
-          </button>
-          <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center font-mono">
-            {currentPage}/{totalPages || 1}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            disabled={currentPage === totalPages || totalPages === 0}
-            className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30 cursor-pointer"
-          >
-            ▶
-          </button>
+        {/* SORT + PAGINATION CONTROLS */}
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          {/* SORT TOGGLE (self-contained; easy to remove on dashboard revamp) */}
+          <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
+            {(
+              [
+                ["recent", "Recent", "Most recent activity"],
+                ["streak", "Streak", "Longest streak first"],
+                ["oldest", "Oldest", "Least recently verified"],
+              ] as const
+            ).map(([mode, label, hint]) => (
+              <button
+                key={mode}
+                type="button"
+                title={hint}
+                onClick={() => {
+                  setSortMode(mode);
+                  setCurrentPage(1);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors cursor-pointer ${
+                  sortMode === mode
+                    ? "bg-pepsi-blue text-white"
+                    : "text-app-muted hover:text-app-text"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* FEED TABLE PAGINATION FOOTPRINT */}
+          <div className="flex items-center gap-1 bg-app-bg p-1 rounded-xl border border-app-border">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30 cursor-pointer"
+            >
+              ◀
+            </button>
+            <span className="text-[10px] font-black text-app-muted px-2 min-w-10 text-center font-mono">
+              {currentPage}/{totalPages || 1}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-2 text-app-text hover:bg-app-card rounded-lg disabled:opacity-30 cursor-pointer"
+            >
+              ▶
+            </button>
+          </div>
         </div>
       </div>
 
@@ -443,7 +501,9 @@ export default function LogTable() {
                 />
                 <Detail
                   label="Last Verified"
-                  value={formatPST(modalLog.last_verified_at || modalLog.created_at)}
+                  value={formatPST(
+                    modalLog.last_verified_at || modalLog.created_at,
+                  )}
                 />
               </div>
 
@@ -493,8 +553,8 @@ export default function LogTable() {
                           </p>
                           <p className="text-[9px] font-bold uppercase tracking-wide text-app-muted">
                             {ep.verification_count || 1} day
-                            {(ep.verification_count || 1) === 1 ? "" : "s"} out ·{" "}
-                            {ep.is_worked ? "Resolved" : "Open"}
+                            {(ep.verification_count || 1) === 1 ? "" : "s"} out
+                            · {ep.is_worked ? "Resolved" : "Open"}
                           </p>
                         </div>
                       </div>
@@ -592,7 +652,7 @@ function Detail({ label, value }: { label: string; value: string }) {
       <p className="text-[8px] font-black uppercase tracking-[0.2em] text-app-muted mb-0.5">
         {label}
       </p>
-      <p className="text-xs font-bold text-app-text break-words">{value}</p>
+      <p className="text-xs font-bold text-app-text wrap-break-word">{value}</p>
     </div>
   );
 }
