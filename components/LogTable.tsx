@@ -43,8 +43,10 @@ export default function LogTable() {
     };
   }, [selectedLog, reasonModalId]);
 
+  // Live gaps only: drop hidden logs and resolved ones. Resolved logs stay
+  // available on the Insights page and in each item's history drawer.
   const activeLogs = useMemo(
-    () => logs.filter((log) => !log.is_hidden),
+    () => logs.filter((log) => !log.is_hidden && !log.is_worked),
     [logs],
   );
 

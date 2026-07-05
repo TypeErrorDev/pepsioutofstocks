@@ -206,3 +206,30 @@ describe("LogTable sort toggle", () => {
     expect(order()).toEqual(["Mtn Dew", "Pepsi", "Starry"]);
   });
 });
+
+describe("LogTable resolved logs", () => {
+  it("hides resolved logs from the live gaps table", () => {
+    mockUseTracker.mockReturnValue({
+      logs: [
+        makeLog({ id: "open", product: "OpenGap", is_worked: false }),
+        makeLog({ id: "done", product: "ResolvedGap", is_worked: true }),
+      ],
+      profile: {
+        id: "u",
+        username: "qa",
+        full_name: "QA Lead",
+        gpid: "1",
+        role: "admin",
+        created_at: "",
+      },
+      loading: false,
+      toggleWorkedStatus: vi.fn(),
+      addLog: vi.fn(),
+    });
+
+    render(<LogTable />);
+
+    expect(screen.getByText(/OpenGap/)).toBeInTheDocument();
+    expect(screen.queryByText(/ResolvedGap/)).not.toBeInTheDocument();
+  });
+});
